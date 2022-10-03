@@ -4,11 +4,8 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 
 from src.data.datamodule.datamodule import MyDataModule
-from src.model.model.pretrained_model import PretrainedTorchModel
 from src.model.lit_model.lit_model import MyLitModel
 from src.utils import read_yaml_config_file
-
-from src.utils import transforms_data, categories
 
 import argparse
 import os
@@ -51,7 +48,11 @@ if __name__ == "__main__":
         conf_ts_board["name"],
     )
 
-    logs_folder = os.path.join(tsboard_logger.save_dir, tsboard_logger.name, f"version_{tsboard_logger.version}")
+    logs_folder = os.path.join(
+        tsboard_logger.save_dir,
+        tsboard_logger.name,
+        f"version_{tsboard_logger.version}",
+    )
     os.makedirs(logs_folder, exist_ok=True)
 
     datamodule = MyDataModule(
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     if checkpoint_path is not None:
         lit_model.load_from_checkpoint(checkpoint_path)
 
-    with open(os.path.join(logs_folder, 'config.yaml'), 'w') as dst:
+    with open(os.path.join(logs_folder, "config.yaml"), "w") as dst:
         yaml.dump(config, dst)
 
     early_stop_callback = EarlyStopping(
@@ -105,7 +106,7 @@ if __name__ == "__main__":
 
     elif mode == "test":
         trainer.test(lit_model, datamodule)
-        
+
     elif mode == "predict":
         trainer.predict(lit_model, datamodule)
 

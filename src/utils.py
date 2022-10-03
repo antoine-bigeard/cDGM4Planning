@@ -11,7 +11,7 @@ def read_yaml_config_file(path_config: str):
         return yaml.load(conf, yaml.FullLoader)
 
 
-def random_observation(shape):
+def random_observation(shape, return_1_idx=False):
     y = torch.ones(shape[0], shape[1], 2)
     y_ones_idx = [randrange(start=0, stop=shape[1]) for i in range(shape[0])]
     for i in range(shape[0]):
@@ -20,4 +20,6 @@ def random_observation(shape):
         )
         y[i, :, 0] = y[i, :, 0] * single_one
         y[i, :, 0] = torch.randn(shape[0], shape[1]) * single_one
+    if return_1_idx:
+        return y, y_ones_idx
     return y

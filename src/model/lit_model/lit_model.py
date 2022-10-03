@@ -1,20 +1,9 @@
 import pytorch_lightning as pl
 import torch
-from random import randrange, random
 import torch.nn.functional as F
-from torchmetrics import (
-    Accuracy,
-    ConfusionMatrix,
-    F1Score,
-    Precision,
-    Recall,
-    MetricCollection,
-)
 import numpy as np
-import torchmetrics.functional as tm_metrics
-import pandas as pd
 import matplotlib.pyplot as plt
-import torch.nn as nn
+import torch.nn.functional as F
 
 from src.model.model.DCGAN import Generator, Discriminator
 
@@ -52,16 +41,18 @@ class LitDCGAN(pl.LightningModule):
         self.discriminator = Discriminator()
 
         self.validation_z = torch.randn(self.validation_shape[0], self.latent_dim)
-        self.validation_y = random_observation(self.validation_shape)
+        self.validation_y, self.y_1_idxs = random_observation(
+            self.validation_shape, return_1_idx=True
+        )
 
     def forward(self, z, y):
         return self.generator(z, y)
 
-    def g_criterion(self):
-        pass
+    def g_criterion(self, pred, target):
+        return F.mse_loss(F.sigmoid(pred), target)
 
-    def d_criterion(self):
-        pass
+    def d_criterion(self, pred, target):
+        return F.mse_loss(F.sigmoid(pred), target)
 
     def generator_step(self, x):
         z = torch.randn(x.shape[0], self.latent_dim)
@@ -121,7 +112,7 @@ class LitDCGAN(pl.LightningModule):
         fig = plt.figure()
         for i, surface in enumerate(sample_surfaces):
             plt.plot(surface)
-            observation_pt = 
-            plt.plot([self.validation_y[i]])
+            observation_pt = (self.y_1_idxs[i], y[self.y_1_idxs[i]])
+            plt.plot(observation_pt, "ro", markersize=8)
 
-        self.logger.experiment.add_image("generated_images", grid, self.current_epoch)
+        self.logger.experiment.add_image("generated_images", fig, self.current_epoch)
