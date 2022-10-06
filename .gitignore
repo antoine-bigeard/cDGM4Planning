@@ -1,6 +1,7 @@
 data/
 /venv/
 notebooks/
+logs/
 
 *__pycache__*
 *__init__.py*

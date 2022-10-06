@@ -2,12 +2,19 @@
 name = "deepgenerativemodelsccs"
 version = "0.1.0"
 description = ""
-authors = ["abigeard"]
+authors = ["AntoineBigeard <abigeard@stanford.edu>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+torch = "^1.12.1"
+pytorch-lightning = "^1.7.7"
+h5py = "^3.7.0"
+pandas = "^1.5.0"
 
+
+[tool.poetry.group.dev.dependencies]
+black = {version = "^22.8.0", allow-prereleases = true}
 
 [build-system]
 requires = ["poetry-core"]

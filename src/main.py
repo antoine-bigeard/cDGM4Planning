@@ -1,10 +1,15 @@
+import sys
+
+sys.path.insert(0, "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS")
+
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 
 from src.data.datamodule.datamodule import MyDataModule
-from src.model.lit_model.lit_model import MyLitModel
+from src.model.lit_model.lit_dcgan import LitDCGAN
+from src.model.model.DCGAN import Generator, Discriminator
 from src.utils import read_yaml_config_file
 
 import argparse
@@ -17,7 +22,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="/home/ec2-user/repo/team_b/config/config.yaml",
+        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/run_config.yaml",
         required=False,
     )
     parser.add_argument(
@@ -35,8 +40,6 @@ if __name__ == "__main__":
     config = read_yaml_config_file(path_config)
     checkpoint_path = config.get("checkpoint_path")
     conf_datamodule = config.get("datamodule")
-    conf_model = config.get("model")
-    conf_pretrained_model = config.get("pretrained_model")
     conf_lit_model = config.get("lit_model")
     conf_trainer = config.get("trainer")
     name_exp = config.get("name_experiment")
@@ -55,30 +58,20 @@ if __name__ == "__main__":
     )
     os.makedirs(logs_folder, exist_ok=True)
 
-    datamodule = MyDataModule(
-        transforms_img=transforms_data,
-        transform_window={},
-        transforms_meta=None,
-        categories=categories,
-        path_logs=logs_folder,
-        **conf_datamodule,
-    )
-
-    num_classes = len(datamodule.selected_categories)
-
-    if conf_lit_model["use_torch_model"]:
-        model = PretrainedTorchModel(**conf_pretrained_model, num_classes=num_classes)
-
-    lit_model = MyLitModel(
-        model=model,
-        learning_rate=conf_lit_model["learning_rate"],
-    )
-
-    if checkpoint_path is not None:
-        lit_model.load_from_checkpoint(checkpoint_path)
-
     with open(os.path.join(logs_folder, "config.yaml"), "w") as dst:
         yaml.dump(config, dst)
+
+    # configure data module
+    datamodule = MyDataModule(**conf_datamodule)
+
+    # configure lit model
+    conf_lit_model["generator"] = Generator
+    conf_lit_model["discriminator"] = Discriminator
+    lit_model = LitDCGAN(log_dir=logs_folder, **conf_lit_model)
+
+    # load trained model if checkpoutint is given
+    if checkpoint_path is not None:
+        lit_model.load_from_checkpoint(checkpoint_path)
 
     early_stop_callback = EarlyStopping(
         monitor="train/loss",
@@ -96,7 +89,7 @@ if __name__ == "__main__":
 
     trainer = pl.Trainer(
         logger=tsboard_logger,
-        callbacks=[early_stop_callback],
+        # callbacks=[early_stop_callback],
         **conf_trainer,
         enable_progress_bar=True,
     )
