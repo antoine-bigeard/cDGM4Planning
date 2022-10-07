@@ -9,7 +9,7 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from src.data.datamodule.datamodule import MyDataModule
 from src.model.lit_model.lit_dcgan import LitDCGAN
-from src.model.model.DCGAN import Generator, Discriminator
+from src.model.model.DCGAN import *
 from src.utils import read_yaml_config_file
 
 import argparse
@@ -65,8 +65,8 @@ if __name__ == "__main__":
     datamodule = MyDataModule(**conf_datamodule)
 
     # configure lit model
-    conf_lit_model["generator"] = Generator
-    conf_lit_model["discriminator"] = Discriminator
+    conf_lit_model["generator"] = eval(conf_lit_model["generator"])
+    conf_lit_model["discriminator"] = eval(conf_lit_model["discriminator"])
     lit_model = LitDCGAN(log_dir=logs_folder, **conf_lit_model)
 
     # load trained model if checkpoutint is given
