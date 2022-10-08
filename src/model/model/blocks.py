@@ -35,6 +35,13 @@ class UpConvBlock(nn.Module):
             nn.Conv1d(
                 self.in_ch, self.out_ch, self.kernel_size, self.stride, self.padding
             ),
+            # nn.ConvTranspose1d(
+            #     self.out_ch,
+            #     self.out_ch,
+            #     self.kernel_size + 1,
+            #     self.scale_factor,
+            #     self.padding,
+            # )
             nn.Upsample(scale_factor=self.scale_factor, mode=self.mode),
         )
 

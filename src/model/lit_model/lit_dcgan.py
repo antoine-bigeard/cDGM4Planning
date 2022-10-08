@@ -72,6 +72,7 @@ class LitDCGAN(pl.LightningModule):
         d_output = torch.squeeze(self.discriminator(generated_surface, y))
 
         g_loss = self.g_criterion(d_output, torch.ones(x_shape[0]).cuda())
+        # g_loss = d_output.mean()
 
         return g_loss
 
@@ -79,6 +80,7 @@ class LitDCGAN(pl.LightningModule):
         # Loss for the real samples
         d_output = torch.squeeze(self.discriminator(x, y))
         loss_real = self.d_criterion(d_output, torch.ones(x.size(0)).cuda())
+        # loss_real = d_output.mean()
 
         # Loss for the generated samples
         z = torch.randn(x.size(0), self.latent_dim).cuda()
@@ -87,8 +89,9 @@ class LitDCGAN(pl.LightningModule):
         generated_surfaces = self(z, y)
         d_output = torch.squeeze(self.discriminator(generated_surfaces, y))
         loss_fake = self.d_criterion(d_output, torch.zeros(x.size(0)).cuda())
+        # loss_fake = d_output.mean()
 
-        return loss_real + loss_fake
+        return loss_fake + loss_real
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, y = batch

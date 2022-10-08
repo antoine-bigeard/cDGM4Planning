@@ -2,8 +2,8 @@ name_experiment: test
 
 datamodule:
   # name: MyDataModule
-  path_surfaces_h5py: data/surfaces.hdf5
-  path_observations_h5py: data/observations.hdf5
+  path_surfaces_h5py: data/surfaces64.hdf5
+  path_observations_h5py: data/observations64.hdf5
   batch_size: 128
   shuffle: True
   num_workers: 4
@@ -13,8 +13,8 @@ datamodule:
 
 lit_model_type: LitDCGAN
 lit_model:
-  generator: SmallGenerator
-  discriminator: SmallDiscriminator
+  generator: SmallGenerator #InjectionGenerator
+  discriminator: SmallDiscriminator #InjectionDiscriminator
   conf_generator:
     latent_dim: 100
   conf_discriminator: {}
