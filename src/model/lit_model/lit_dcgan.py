@@ -6,8 +6,9 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
-
+from torchmetrics import MetricCollection
 from src.model.model.DCGAN import *
+from src.model.lit_model.metrics import *
 
 from src.utils import random_observation
 
@@ -53,6 +54,11 @@ class LitDCGAN(pl.LightningModule):
 
         self.current_training_step = 0
 
+        self.train_metrics = MetricCollection(
+            L2Metric(p=2), DistanceToY(), prefix="train/"
+        )
+        self.val_metrics = MetricCollection(L2Metric(p=2), DistanceToY(), prefix="val/")
+
     def forward(self, z, y):
         return self.generator(z, y)
 
@@ -65,16 +71,19 @@ class LitDCGAN(pl.LightningModule):
     def generator_step(self, y, x_shape):
         z = torch.randn(x_shape[0], self.latent_dim).cuda()
         if self.use_rd_y:
-            y = random_observation(x_shape).cuda()
+            y, idxs_1 = random_observation(x_shape, return_1_idx=True)
+            y = y.cuda()
 
         generated_surface = self(z, y)
 
         d_output = torch.squeeze(self.discriminator(generated_surface, y))
 
-        g_loss = self.g_criterion(d_output, torch.ones(x_shape[0]).cuda())
+        g_loss = self.g_criterion(
+            d_output, torch.ones(x_shape[0]).cuda()
+        )  # + F.mse_loss(generated_surface[:, :, idxs_1], y[:, 1, idxs_1])
         # g_loss = d_output.mean()
 
-        return g_loss
+        return {"g_loss": g_loss, "preds": generated_surface, "condition": y}
 
     def discriminator_step(self, x, y):
         # Loss for the real samples
@@ -91,7 +100,7 @@ class LitDCGAN(pl.LightningModule):
         loss_fake = self.d_criterion(d_output, torch.zeros(x.size(0)).cuda())
         # loss_fake = d_output.mean()
 
-        return loss_fake + loss_real
+        return {"d_loss": loss_fake + loss_real}
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, y = batch
@@ -99,34 +108,39 @@ class LitDCGAN(pl.LightningModule):
         # train generator
         if optimizer_idx == 0:
             # if self.current_training_step % 2 > 0 or self.current_training_step == 0:
-            g_loss = self.generator_step(
+            gen_dict = self.generator_step(
                 y, x_shape=(y.size(0), *self.validation_x_shape[1:])
             )
-            self.log("train/g_loss", g_loss, prog_bar=True)
+            metrics = self.val_metrics(gen_dict["preds"], (x, gen_dict["condition"]))
+            self.log_dict(metrics, on_step=True, on_epoch=False, logger=True)
+            self.log("train/g_loss", gen_dict["g_loss"], prog_bar=True)
             self.current_training_step += 1
-            return g_loss
+            return gen_dict["g_loss"]
 
         # train discriminator
         if optimizer_idx == 1:
             # if self.current_training_step % 2 == 0 and self.current_training_step > 0:
-            d_loss = self.discriminator_step(x, y)
-            self.log("train/d_loss", d_loss, prog_bar=True)
+            dis_dict = self.discriminator_step(x, y)
+            self.log("train/d_loss", dis_dict["d_loss"], prog_bar=True)
             self.current_training_step += 1
-            return d_loss
+            return dis_dict["d_loss"]
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
 
         # train generator
-        g_loss = self.generator_step(
+        gen_dict = self.generator_step(
             y, x_shape=(y.size(0), *self.validation_x_shape[1:])
         )
-        self.log("val/g_loss", g_loss, prog_bar=True)
+        self.log("val/g_loss", gen_dict["g_loss"], prog_bar=True)
 
         # train discriminator
-        d_loss = self.discriminator_step(x, y)
-        self.log("val/d_loss", d_loss, prog_bar=True)
-        return {"g_loss": g_loss, "d_loss": d_loss}
+        dis_dict = self.discriminator_step(x, y)
+        self.log("val/d_loss", dis_dict["d_loss"], prog_bar=True)
+        metrics = self.val_metrics(gen_dict["preds"], (x, gen_dict["condition"]))
+        self.log_dict(metrics, on_step=True, on_epoch=False, logger=True)
+
+        return {"g_loss": gen_dict["g_loss"], "d_loss": dis_dict["d_loss"]}
 
     def configure_optimizers(self):
         opt_g = torch.optim.Adam(

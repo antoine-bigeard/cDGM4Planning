@@ -1,3 +1,4 @@
+from matplotlib import scale
 import pytorch_lightning as pl
 import torch
 import numpy as np
@@ -30,6 +31,11 @@ class SmallGenerator(nn.Module):
             nn.BatchNorm1d(64),
             nn.LeakyReLU(),
             nn.Dropout(0.25, inplace=False),
+            nn.Conv1d(
+                in_channels=64, out_channels=64, stride=1, kernel_size=3, padding=1
+            ),
+            nn.BatchNorm1d(64),
+            nn.LeakyReLU(),
             nn.Conv1d(
                 in_channels=64,
                 out_channels=32,
@@ -75,7 +81,7 @@ class SmallDiscriminator(nn.Module):
             ),
             nn.Dropout(0.4, inplace=False),
             Flatten(),
-            nn.Linear(1664, 1),
+            nn.Linear(2048, 1),
         )
 
     def forward(self, x, y):
@@ -98,23 +104,6 @@ class Block(nn.Module):
 
     def forward(self, x):
         return self.net(x)
-
-
-class ResidualBlock(nn.Module):
-    def __init__(self, in_ch) -> None:
-        super().__init__()
-        self.in_ch = in_ch
-
-        self.conv_block = nn.Sequential(
-            nn.Conv1d(in_ch, in_ch, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm1d(in_ch, 0.8),
-            nn.ReLU(),
-            nn.Conv1d(in_ch, in_ch, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm1d(in_ch, 0.8),
-        )
-
-    def forward(self, x):
-        return self.conv_block(x)
 
 
 class InjectionGenerator(nn.Module):
@@ -223,9 +212,8 @@ class InjectionGenerator(nn.Module):
 
 
 class InjectionDiscriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, out_chs=[64, 128, 256, 512]):
         super().__init__()
-        self.upsample_label = nn.Upsample(scale_factor=64 / 51, mode="linear")
 
         self.common = nn.Sequential(
             nn.Conv1d(
@@ -235,34 +223,83 @@ class InjectionDiscriminator(nn.Module):
             nn.Conv1d(
                 in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1
             ),
-            nn.BatchNorm1d(128),
+            # nn.BatchNorm1d(128),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.4),
             nn.Conv1d(
                 in_channels=128, out_channels=256, kernel_size=3, stride=2, padding=1
             ),
-            nn.BatchNorm1d(256),
+            # nn.BatchNorm1d(256),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.4),
             nn.Conv1d(
                 in_channels=256, out_channels=512, kernel_size=3, stride=2, padding=1
             ),
+            # Flatten(),
+            # nn.Linear(2048, 1)
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2),
             nn.Conv1d(
-                in_channels=512, out_channels=512, kernel_size=3, stride=2, padding=1
+                in_channels=512, out_channels=512, kernel_size=3, stride=1, padding=1
             ),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2),
-            nn.Conv1d(
-                in_channels=512, out_channels=1, kernel_size=1, stride=4, padding=1
-            ),
+            nn.Dropout(0.4),
+            Flatten(),
+            nn.Linear(2048, 1),
         )
 
     def forward(self, x, y):
-        if x.size(2) == 51:
-            x = self.upsample_label(x)
-        if y.size(2) == 51:
-            y = self.upsample_label(y)
         input_disc = torch.cat([x, y], dim=1)
+        return self.common(input_disc)
+
+
+class AtienzaGenerator(nn.Module):
+    def __init__(self, latent_dim, n_up_conv_blocks=3):
+        super().__init__()
+        self.latent_dim = latent_dim
+        self.n_up_conv_blocks = n_up_conv_blocks
+
+        self.latent = nn.Sequential(
+            nn.Linear(self.latent_dim, 4096),
+            nn.LeakyReLU(0.2, inplace=False),
+        )
+
+        self.common = nn.Sequential(
+            ResidualBlock(1024, 512, sampling="upsample"),
+            ResidualBlock(512, 256, sampling="upsample"),
+            ResidualBlock(256, 128, sampling="upsample"),
+            ResidualBlock(128, 64, sampling="upsample"),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Conv1d(64, 1, kernel_size=3, stride=1, padding=1),
+        )
+
+    def forward(self, z: torch.Tensor, y: torch.Tensor):
+
+        out = self.latent(z).view([z.size(0), 1024, 4])
+
+        return self.common(out)
+
+
+class AtienzaDiscriminator(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.common = nn.Sequential(
+            ResidualBlock(3, 64, sampling="downsample"),
+            ResidualBlock(64, 128, sampling="downsample"),
+            ResidualBlock(128, 256, sampling="downsample"),
+            ResidualBlock(256, 512, sampling="downsample"),
+            Flatten(),
+            nn.Linear(2048, 256),
+            nn.ReLU(),
+            nn.Linear(256, 1),
+        )
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor):
+        input_disc = torch.cat([x, y], dim=1)
+
         return self.common(input_disc)
 
 

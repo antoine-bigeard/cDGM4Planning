@@ -2,9 +2,9 @@ name_experiment: test
 
 datamodule:
   # name: MyDataModule
-  path_surfaces_h5py: data/surfaces64.hdf5
-  path_observations_h5py: data/observations64.hdf5
-  batch_size: 128
+  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModels.jl/surfaces64.hdf5
+  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModels.jl/observations64.hdf5
+  batch_size: 512
   shuffle: True
   num_workers: 4
   pct_train: 0.8
@@ -13,16 +13,16 @@ datamodule:
 
 lit_model_type: LitDCGAN
 lit_model:
-  generator: SmallGenerator #InjectionGenerator
-  discriminator: SmallDiscriminator #InjectionDiscriminator
+  generator: AtienzaGenerator #InjectionGenerator
+  discriminator: AtienzaDiscriminator #InjectionDiscriminator
   conf_generator:
     latent_dim: 100
   conf_discriminator: {}
-  g_lr: 0.002
-  d_lr: 0.002
+  g_lr: 0.0002
+  d_lr: 0.0002
   b1: 0.5
   b2: 0.999
-  validation_x_shape: [5, 1, 51]
+  validation_x_shape: [10, 1, 64]
   use_rd_y: True
 
 trainer:
@@ -37,10 +37,10 @@ trainer:
 
 tensorboard_logs:
   save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs
-  name: first_run
+  name: atienza
 
 checkpoint_callback:
-  monitor: val/loss
+  monitor: val/L2Metric
   mode: min
   save_last: True
   filename: best-checkpoint
