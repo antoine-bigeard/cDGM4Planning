@@ -1,4 +1,4 @@
-name_experiment: small_wgp_latent20
+name_experiment: larger_gen_dis
 
 datamodule:
   # name: MyDataModule
@@ -13,8 +13,8 @@ datamodule:
 
 lit_model_type: LitDCGAN
 lit_model:
-  generator: SmallGenerator #InjectionGenerator
-  discriminator: SmallDiscriminator #InjectionDiscriminator
+  generator: LargerGenerator2 #InjectionGenerator
+  discriminator: LargerDiscriminator #InjectionDiscriminator
   conf_generator:
     latent_dim: 20
   conf_discriminator: {}
@@ -25,7 +25,7 @@ lit_model:
   validation_x_shape: [10, 1, 64]
   use_rd_y: True
   batch_size: 256
-  wasserstein_gp_loss: True
+  wasserstein_gp_loss: False
 
 trainer:
   auto_lr_find: False

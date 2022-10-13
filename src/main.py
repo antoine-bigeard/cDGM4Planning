@@ -8,8 +8,9 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 
 from src.data.datamodule.datamodule import MyDataModule
-from src.model.lit_model.lit_dcgan import LitDCGAN
+from src.model.lit_model.lit_models import *
 from src.model.model.DCGAN import *
+from src.model.model.CVAE import *
 from src.utils import read_yaml_config_file
 
 import argparse
@@ -17,12 +18,14 @@ import os
 import yaml
 
 if __name__ == "__main__":
+    torch.manual_seed(123)
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/run_config.yaml",
+        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/cvae_test.yaml",
         required=False,
     )
     parser.add_argument(
@@ -48,12 +51,12 @@ if __name__ == "__main__":
 
     tsboard_logger = TensorBoardLogger(
         conf_ts_board["save_dir"],
-        conf_ts_board["name"],
+        config["name_experiment"],
     )
 
     logs_folder = os.path.join(
         tsboard_logger.save_dir,
-        tsboard_logger.name,
+        config["name_experiment"],
         f"version_{tsboard_logger.version}",
     )
     os.makedirs(logs_folder, exist_ok=True)
@@ -61,13 +64,19 @@ if __name__ == "__main__":
     with open(os.path.join(logs_folder, "config.yaml"), "w") as dst:
         yaml.dump(config, dst)
 
+    os.system(f"cp src/model/model/DCGAN.py {os.path.join(logs_folder, 'DCGAN.py')}")
+    os.system(f"cp src/model/model/blocks.py {os.path.join(logs_folder, 'blocks.py')}")
+
     # configure data module
     datamodule = MyDataModule(**conf_datamodule)
 
     # configure lit model
-    conf_lit_model["generator"] = eval(conf_lit_model["generator"])
-    conf_lit_model["discriminator"] = eval(conf_lit_model["discriminator"])
-    lit_model = LitDCGAN(log_dir=logs_folder, **conf_lit_model)
+    if config["lit_model_type"] == "LitDCGAN":
+        conf_lit_model["generator"] = eval(conf_lit_model["generator"])
+        conf_lit_model["discriminator"] = eval(conf_lit_model["discriminator"])
+    else:
+        conf_lit_model["vae"] = eval(conf_lit_model["vae"])
+    lit_model = eval(config["lit_model_type"])(log_dir=logs_folder, **conf_lit_model)
 
     # load trained model if checkpoutint is given
     if checkpoint_path is not None:

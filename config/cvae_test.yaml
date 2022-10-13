@@ -1,4 +1,4 @@
-name_experiment: small_wgp_latent20
+name_experiment: cvae
 
 datamodule:
   # name: MyDataModule
@@ -11,28 +11,28 @@ datamodule:
   pct_val: 0.2
   pct_test: 0
 
-lit_model_type: LitDCGAN
+lit_model_type: LitVAE
 lit_model:
-  generator: SmallGenerator #InjectionGenerator
-  discriminator: SmallDiscriminator #InjectionDiscriminator
-  conf_generator:
+  vae: VAE #InjectionGenerator
+  conf_vae:
+    encoder_layer_sizes: [784, 256]
     latent_dim: 20
-  conf_discriminator: {}
-  g_lr: 0.0002
-  d_lr: 0.0002
+    decoder_layer_sizes: [256, 784, 64]
+    conditional: True
+  lr: 0.0002
   b1: 0.5
   b2: 0.999
   validation_x_shape: [10, 1, 64]
-  use_rd_y: True
+  use_rd_y: False
   batch_size: 256
-  wasserstein_gp_loss: True
+  wasserstein_gp_loss: False
 
 trainer:
   auto_lr_find: False
   min_epochs: 1
-  max_epochs: 50
+  max_epochs: 30
   fast_dev_run: False
-  gpus: [2]
+  gpus: [1]
   log_every_n_steps: 10
   # flush_logs_every_n_steps: 10
   # learning_rate: 0.0001
