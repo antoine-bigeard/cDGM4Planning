@@ -525,7 +525,62 @@ class LargerGenerator2(nn.Module):
         )
 
         self.common = nn.Sequential(
+            nn.Conv1d(
+                in_channels=130, out_channels=128, stride=2, kernel_size=4, padding=1
+            ),
+            nn.BatchNorm1d(128),
+            nn.LeakyReLU(),
             nn.ConvTranspose1d(
+                in_channels=128, out_channels=256, stride=2, kernel_size=4, padding=1
+            ),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(),
+            nn.Dropout(0.25, inplace=False),
+            nn.ConvTranspose1d(
+                in_channels=256, out_channels=512, stride=2, kernel_size=4, padding=1
+            ),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(),
+            # nn.Conv1d(
+            #     in_channels=512, out_channels=512, stride=1, kernel_size=3, padding=1
+            # ),
+            # nn.BatchNorm1d(512),
+            # nn.LeakyReLU(),
+            nn.Conv1d(
+                in_channels=512, out_channels=256, stride=2, kernel_size=4, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.Conv1d(
+                in_channels=256, out_channels=128, stride=1, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.Conv1d(
+                in_channels=128, out_channels=64, stride=1, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.Conv1d(
+                in_channels=64, out_channels=1, stride=1, kernel_size=3, padding=1
+            ),
+        )
+
+    def forward(self, z: torch.Tensor, y: torch.Tensor):
+        z = self.latent(z).view([z.size(0), 128, 64])
+        input_gen = torch.cat([z, y], dim=1)
+        return self.common(input_gen)
+
+
+class LargerGenerator3(nn.Module):
+    def __init__(self, latent_dim):
+        super().__init__()
+        self.latent_dim = latent_dim
+
+        self.latent = nn.Sequential(
+            nn.Linear(self.latent_dim, 8192),
+            nn.LeakyReLU(0.2, inplace=False),
+        )
+
+        self.common = nn.Sequential(
+            nn.Conv1d(
                 in_channels=130, out_channels=128, stride=2, kernel_size=4, padding=1
             ),
             nn.BatchNorm1d(128),
@@ -542,7 +597,55 @@ class LargerGenerator2(nn.Module):
             nn.BatchNorm1d(512),
             nn.LeakyReLU(),
             nn.Conv1d(
-                in_channels=512, out_channels=512, stride=1, kernel_size=3, padding=1
+                in_channels=512, out_channels=256, stride=2, kernel_size=4, padding=1
+            ),
+            nn.LeakyReLU(),
+        )
+        self.common2 = nn.Sequential(
+            nn.Conv1d(
+                in_channels=258, out_channels=128, stride=1, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.Conv1d(
+                in_channels=128, out_channels=128, stride=1, kernel_size=3, padding=1
+            ),
+            nn.LeakyReLU(),
+            nn.Conv1d(
+                in_channels=128, out_channels=1, stride=1, kernel_size=3, padding=1
+            ),
+        )
+
+    def forward(self, z: torch.Tensor, y: torch.Tensor):
+        z = self.latent(z).view([z.size(0), 128, 64])
+        input_gen = torch.cat([z, y], dim=1)
+        out = self.common(input_gen)
+        return self.common2(torch.cat([out, y], dim=1))
+
+
+class LargerGenerator4(nn.Module):
+    def __init__(self, latent_dim):
+        super().__init__()
+        self.latent_dim = latent_dim
+
+        self.latent = nn.Sequential(
+            nn.Linear(self.latent_dim, 8192),
+            nn.LeakyReLU(0.2, inplace=False),
+        )
+
+        self.common = nn.Sequential(
+            nn.Conv1d(
+                in_channels=130, out_channels=128, stride=2, kernel_size=4, padding=1
+            ),
+            nn.BatchNorm1d(128),
+            nn.LeakyReLU(),
+            nn.ConvTranspose1d(
+                in_channels=128, out_channels=256, stride=2, kernel_size=4, padding=1
+            ),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(),
+            nn.Dropout(0.25, inplace=False),
+            nn.ConvTranspose1d(
+                in_channels=256, out_channels=512, stride=2, kernel_size=4, padding=1
             ),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(),
@@ -551,18 +654,32 @@ class LargerGenerator2(nn.Module):
             ),
             nn.LeakyReLU(),
             nn.Conv1d(
-                in_channels=256, out_channels=128, stride=2, kernel_size=4, padding=1
+                in_channels=258, out_channels=128, stride=1, kernel_size=3, padding=1
             ),
             nn.LeakyReLU(),
             nn.Conv1d(
-                in_channels=128, out_channels=1, stride=2, kernel_size=4, padding=1
+                in_channels=128, out_channels=128, stride=1, kernel_size=3, padding=1
             ),
+            nn.LeakyReLU(),
+            nn.Conv1d(
+                in_channels=128, out_channels=1, stride=1, kernel_size=3, padding=1
+            ),
+        )
+
+        self.trans_y = nn.Sequential(
+            nn.Conv1d(2, 4, kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose1d(2, 8, kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose1d(2, 16, kernel_size=4, stride=4, padding=1),
+            nn.Conv1d(2, 4, kernel_size=4, stride=2, padding=1),
+            nn.Conv1d(2, 2, kernel_size=4, stride=1, padding=1),
+            nn.Conv1d(2, 2, kernel_size=4, stride=1, padding=1),
         )
 
     def forward(self, z: torch.Tensor, y: torch.Tensor):
         z = self.latent(z).view([z.size(0), 128, 64])
         input_gen = torch.cat([z, y], dim=1)
-        return self.common(input_gen)
+        out = self.common[:10](input_gen)
+        return self.common[10:](torch.cat([out, y], dim=1))
 
 
 class LargerDiscriminator(nn.Module):
@@ -604,96 +721,3 @@ class LargerDiscriminator(nn.Module):
     def forward(self, x, y):
         input_disc = torch.cat([x, y], dim=1)
         return self.common(input_disc)
-
-
-"""
-OTHER VERSION THAT SEEMS TO ADVANTAGEOUS FOR DISCRIMINATOR
-
-import pytorch_lightning as pl
-import torch
-import numpy as np
-import torch.nn.functional as F
-from src.utils import read_yaml_config_file
-import torch.nn as nn
-
-
-class Generator(nn.Module):
-    def __init__(self, latent_dim):
-        super().__init__()
-        self.latent_dim = latent_dim
-
-        self.latent = nn.Sequential(
-            nn.Linear(self.latent_dim, 6528),
-            nn.LeakyReLU(0.2, inplace=False),
-        )
-
-        self.common = nn.Sequential(
-            nn.ConvTranspose1d(
-                in_channels=130, out_channels=128, stride=2, kernel_size=4
-            ),
-            nn.BatchNorm1d(128),
-            nn.Dropout(0.25),
-            nn.ConvTranspose1d(
-                in_channels=128, out_channels=64, stride=2, kernel_size=4
-            ),
-            nn.BatchNorm1d(64),
-            # nn.Dropout(0.25, inplace=False),
-            nn.Conv1d(
-                in_channels=64,
-                out_channels=32,
-                stride=2,
-                kernel_size=4,
-            ),
-            # nn.LeakyReLU(),
-            nn.Conv1d(
-                in_channels=32,
-                out_channels=1,
-                stride=2,
-                kernel_size=4,
-            ),
-        )
-
-    def forward(self, z: torch.Tensor, y: torch.Tensor):
-        z = self.latent(z).view([z.size(0), 128, 51])
-        input_gen = torch.cat([z, y], dim=1)
-        return self.common(input_gen)
-
-
-class Discriminator(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        self.common = nn.Sequential(
-            nn.Conv1d(
-                in_channels=3,
-                out_channels=128,
-                kernel_size=3,
-                stride=2,
-                padding=1,
-            ),
-            nn.LeakyReLU(0.2, inplace=False),
-            nn.Dropout(0.4, inplace=False),
-            nn.Conv1d(
-                in_channels=128,
-                out_channels=128,
-                kernel_size=3,
-                stride=2,
-                padding=1,
-            ),
-            nn.LeakyReLU(0.2, inplace=False),
-            Flatten(),
-            nn.Dropout(0.4, inplace=False),
-            nn.Linear(1664, 1),
-        )
-
-    def forward(self, x, y):
-        input_disc = torch.cat([x, y], dim=1)
-        return self.common(input_disc)
-
-
-class Flatten(torch.nn.Module):
-    def forward(self, x):
-        batch_size = x.shape[0]
-        return x.view(batch_size, -1)
-
-"""

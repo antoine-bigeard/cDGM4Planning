@@ -7,3 +7,4 @@ old_logs/
 *__pycache__*
 *__init__.py*
 *.out*
+nohup.out

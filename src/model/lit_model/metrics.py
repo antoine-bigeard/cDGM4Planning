@@ -4,6 +4,19 @@ import torch.nn as nn
 from torchmetrics.functional import pearson_corrcoef
 
 
+def L2_metric(preds, target, p):
+    return torch.cdist(preds, target[0], p=p).cpu().float()
+
+
+def dist_to_y_metric(preds, target, p):
+    idx1 = target[1][:, 0, :].nonzero()
+    return (
+        (preds[idx1[:, 0], :, idx1[:, 1]] - target[0][idx1[:, 0], :, idx1[:, 1]])
+        .cpu()
+        .float()
+    )
+
+
 class L2Metric(Metric):
     def __init__(self, p=2):
         super().__init__()
@@ -15,7 +28,7 @@ class L2Metric(Metric):
         self.distance = (
             self.distance
             + (
-                torch.cdist(preds, target[0], p=self.p)
+                (torch.cdist(preds, target[0], p=self.p))
                 / (torch.max(target[0]) - torch.min(target[0]))
             )
             .mean()
@@ -37,7 +50,10 @@ class DistanceToY(Metric):
         self.distance_to_y = (
             self.distance_to_y
             + (
-                preds[idx1[:, 0], :, idx1[:, 1]]
+                (
+                    preds[idx1[:, 0], :, idx1[:, 1]]
+                    - target[0][idx1[:, 0], :, idx1[:, 1]]
+                )
                 / (torch.max(preds, dim=-1)[0] - torch.min(preds, dim=-1)[0])
             ).mean()
         )

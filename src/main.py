@@ -1,4 +1,5 @@
 import sys
+from pympler.asizeof import asizeof
 
 sys.path.insert(0, "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS")
 
@@ -25,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/cvae_test.yaml",
+        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/tests_gens.yaml",
         required=False,
     )
     parser.add_argument(

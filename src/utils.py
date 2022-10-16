@@ -4,6 +4,7 @@ import pandas as pd
 import torch
 from PIL import Image
 from random import randrange
+import matplotlib.pyplot as plt
 
 
 def read_yaml_config_file(path_config: str):
@@ -72,3 +73,19 @@ def idx2onehot(idx, n):
     onehot.scatter_(1, idx, 1)
 
     return onehot
+
+
+def create_figs(sample_surfaces, y_1_idxs, validation_y):
+    figs = []
+    for i, surface in enumerate(sample_surfaces):
+        fig = plt.figure()
+        for s in surface:
+            plt.plot(s.squeeze().detach().cpu(), color="blue")
+        observation_pt = (
+            y_1_idxs[i],
+            validation_y[i, :, y_1_idxs[i]][1].cpu(),
+        )
+        plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
+        # plt.ylim((-3, -3))
+        figs.append(fig)
+    return figs

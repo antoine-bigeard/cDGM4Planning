@@ -10,7 +10,7 @@ from torchmetrics import MetricCollection, PearsonCorrCoef
 from src.model.model.DCGAN import *
 from src.model.lit_model.metrics import *
 
-from src.utils import random_observation, calculate_gradient_penalty
+from src.utils import random_observation, calculate_gradient_penalty, create_figs
 
 
 class LitDCGAN(pl.LightningModule):
@@ -29,6 +29,7 @@ class LitDCGAN(pl.LightningModule):
         use_rd_y: bool = True,
         batch_size=512,
         wasserstein_gp_loss=False,
+        n_sample_for_metric: int = 100,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -49,16 +50,19 @@ class LitDCGAN(pl.LightningModule):
         self.use_rd_y = use_rd_y
         self.batch_size = batch_size
         self.w_gp_loss = wasserstein_gp_loss
+        self.n_sample_for_metric = n_sample_for_metric
 
         self.validation_z = torch.randn(
             self.validation_x_shape[0], self.latent_dim, device=self.device
         )
+        self.metric_z
         rd_obs = random_observation(
             self.validation_x_shape, return_1_idx=True, random=False
         )
         self.validation_y, self.y_1_idxs = rd_obs[0].to(self.device), rd_obs[1]
 
         self.current_training_step = 0
+        self.current_validation_step = 0
 
         self.train_metrics = MetricCollection(
             L2Metric(p=2), DistanceToY(), Pearson(), prefix="train/"
@@ -153,6 +157,12 @@ class LitDCGAN(pl.LightningModule):
             metrics = self.train_metrics(gen_dict["preds"], (x, gen_dict["condition"]))
             self.log_dict(metrics, on_step=True, on_epoch=False, logger=True)
             self.log("train/g_loss", gen_dict["g_loss"], prog_bar=True)
+            # if self.current_training_step % 10 == 0:
+            #     best_y, best_L2 = self.compute_val_metric(x)
+            #     for k in best_y.keys():
+            #         self.log(f"train/dist_y/{k}", best_y[k])
+            #         self.log(f"train/L2/{k}", best_L2[k])
+
             self.current_training_step += 1
             return gen_dict["g_loss"]
 
@@ -190,6 +200,13 @@ class LitDCGAN(pl.LightningModule):
             )
         metrics = self.val_metrics(gen_dict["preds"], (x, gen_dict["condition"]))
         self.log_dict(metrics, on_step=True, on_epoch=False, logger=True)
+        # if self.current_training_step % 10 == 0:
+        #     best_y, best_L2 = self.compute_val_metric(x)
+        #     for k in best_y.keys():
+        #         self.log(f"train/dist_y/{k}", best_y[k])
+        #         self.log(f"train/L2/{k}", best_L2[k])
+
+        self.current_validation_step += 1
 
         return {"g_loss": gen_dict["g_loss"], "d_loss": dis_dict["d_loss"]}
 
@@ -218,18 +235,8 @@ class LitDCGAN(pl.LightningModule):
                 )
             )
 
-        for i, surface in enumerate(sample_surfaces):
-            fig = plt.figure()
-            for s in surface:
-                plt.plot(s.detach().squeeze().cpu(), color="blue")
-            observation_pt = (
-                self.y_1_idxs[i],
-                self.validation_y[i, :, self.y_1_idxs[i]][1].cpu(),
-            )
-            plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
-            # plt.ylim((-3, -3))
-            plt.savefig(os.path.join(img_dir, f"test_{i}"))
-
+        figs = create_figs(sample_surfaces, self.y_1_idxs, self.validation_y)
+        for i, fig in enumerate(figs):
             self.logger.experiment.add_figure(
                 f"generated_image_{i}", fig, self.current_epoch
             )
@@ -249,20 +256,48 @@ class LitDCGAN(pl.LightningModule):
                 )
             )
 
-        for i, surface in enumerate(sample_surfaces):
-            fig = plt.figure()
-            for s in surface:
-                plt.plot(s.squeeze().detach().cpu(), color="blue")
-            observation_pt = (
-                self.y_1_idxs[i],
-                self.validation_y[i, :, self.y_1_idxs[i]][1].cpu(),
-            )
-            plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
-            # plt.ylim((-3, -3))
-
+        figs = create_figs(sample_surfaces, self.y_1_idxs, self.validation_y)
+        for i, fig in enumerate(figs):
             self.logger.experiment.add_figure(
                 f"generated_image_{i}", fig, self.current_epoch
             )
+
+    def compute_val_metric(self, x):
+        z = torch.randn(self.n_sample_for_metric, self.latent_dim).to(self.device)
+        best_dist_y = {}
+        best_L2 = {}
+        for label, idx in zip(self.validation_y, self.y_1_idxs):
+            for surf in x[:10]:
+                input_y = torch.Tensor(label)
+                input_y[1, idx] = surf[:, idx]
+                input_y = torch.cat([input_y.unsqueeze(0) for i in range(z.size(0))])
+                samples = self(z, input_y)
+                l2_metric = L2_metric(
+                    samples,
+                    (
+                        torch.cat([surf.unsqueeze(0) for i in range(z.size(0))], dim=0),
+                        input_y,
+                    ),
+                    p=2,
+                ).min()
+                dist_y = dist_to_y_metric(
+                    samples,
+                    (
+                        torch.cat([surf.unsqueeze(0) for i in range(z.size(0))], dim=0),
+                        input_y,
+                    ),
+                    p=2,
+                ).min()
+
+                if idx in best_dist_y:
+                    best_dist_y[idx] += dist_y
+                    best_L2[idx] += l2_metric
+                else:
+                    best_dist_y[idx] = dist_y
+                    best_L2[idx] = l2_metric
+            best_dist_y[idx] = best_dist_y[idx] / 10
+            best_L2[idx] = best_L2[idx] / 10
+        return best_dist_y, best_L2
 
 
 class LitVAE(pl.LightningModule):
@@ -380,18 +415,8 @@ class LitVAE(pl.LightningModule):
                 )
             )
 
-        for i, surface in enumerate(sample_surfaces):
-            fig = plt.figure()
-            for s in surface:
-                plt.plot(s.detach().squeeze().cpu(), color="blue")
-            observation_pt = (
-                self.y_1_idxs[i],
-                self.validation_y[i, :, self.y_1_idxs[i]][1].cpu(),
-            )
-            plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
-            # plt.ylim((-3, -3))
-            plt.savefig(os.path.join(img_dir, f"test_{i}"))
-
+        figs = create_figs(sample_surfaces, self.y_1_idxs, self.validation_y)
+        for i, fig in enumerate(figs):
             self.logger.experiment.add_figure(
                 f"generated_image_{i}", fig, self.current_epoch
             )
@@ -411,17 +436,8 @@ class LitVAE(pl.LightningModule):
                 )
             )
 
-        for i, surface in enumerate(sample_surfaces):
-            fig = plt.figure()
-            for s in surface:
-                plt.plot(s.squeeze().detach().cpu(), color="blue")
-            observation_pt = (
-                self.y_1_idxs[i],
-                self.validation_y[i, :, self.y_1_idxs[i]][1].cpu(),
-            )
-            plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
-            # plt.ylim((-3, -3))
-
+        figs = create_figs(sample_surfaces, self.y_1_idxs, self.validation_y)
+        for i, fig in enumerate(figs):
             self.logger.experiment.add_figure(
                 f"generated_image_{i}", fig, self.current_epoch
             )
