@@ -3,6 +3,7 @@ data/
 notebooks/
 logs/
 old_logs/
+old_logs2/
 
 *__pycache__*
 *__init__.py*

@@ -6,6 +6,8 @@ import torch.nn.functional as F
 from src.utils import read_yaml_config_file
 import torch.nn as nn
 
+from torch.nn.utils.parametrizations import spectral_norm
+
 from src.model.model.blocks import *
 
 
@@ -193,7 +195,10 @@ class InjectionGenerator(nn.Module):
 
 
 class InjectionDiscriminator(nn.Module):
-    def __init__(self, out_chs=[64, 128, 256, 512]):
+    def __init__(
+        self,
+        out_chs=[64, 128, 256, 512],
+    ):
         super().__init__()
 
         self.common = nn.Sequential(
@@ -515,9 +520,16 @@ class LargerGenerator(nn.Module):
 
 
 class LargerGenerator2(nn.Module):
-    def __init__(self, latent_dim):
+    def __init__(
+        self,
+        latent_dim,
+        spectral_norm_layers: list = [False, False, False, False],
+        spec_norm_lin=False,
+    ):
         super().__init__()
         self.latent_dim = latent_dim
+        self.spectral_norm_layers = spectral_norm_layers
+        self.spec_norm_lin = spec_norm_lin
 
         self.latent = nn.Sequential(
             nn.Linear(self.latent_dim, 8192),
@@ -622,10 +634,23 @@ class LargerGenerator3(nn.Module):
         return self.common2(torch.cat([out, y], dim=1))
 
 
-class LargerGenerator4(nn.Module):
-    def __init__(self, latent_dim):
+class LargeGeneratorInject(nn.Module):
+    def __init__(
+        self,
+        latent_dim,
+        injections=[
+            (True, 0),
+            (False, 2),
+            (False, 2),
+            (False, 2),
+            (True, 0),
+            (False, 2),
+            (False, 2),
+        ],  # (True to inject y, number of channels to use for convolution before injection (if 0 no convolution used))
+    ):
         super().__init__()
         self.latent_dim = latent_dim
+        self.injections = injections
 
         self.latent = nn.Sequential(
             nn.Linear(self.latent_dim, 8192),
@@ -633,58 +658,139 @@ class LargerGenerator4(nn.Module):
         )
 
         self.common = nn.Sequential(
-            nn.Conv1d(
-                in_channels=130, out_channels=128, stride=2, kernel_size=4, padding=1
+            nn.Sequential(
+                nn.Conv1d(
+                    in_channels=128 + test0(self.injections[0][1], 2)
+                    if self.injections[0][0]
+                    else 128,
+                    out_channels=128,
+                    stride=2,
+                    kernel_size=4,
+                    padding=1,
+                ),
+                nn.BatchNorm1d(128),
+                nn.LeakyReLU(),
             ),
-            nn.BatchNorm1d(128),
-            nn.LeakyReLU(),
-            nn.ConvTranspose1d(
-                in_channels=128, out_channels=256, stride=2, kernel_size=4, padding=1
+            nn.Sequential(
+                nn.ConvTranspose1d(
+                    in_channels=128 + test0(self.injections[1][1], 2)
+                    if self.injections[1][0]
+                    else 128,
+                    out_channels=256,
+                    stride=2,
+                    kernel_size=4,
+                    padding=1,
+                ),
+                nn.BatchNorm1d(256),
+                nn.LeakyReLU(),
+                nn.Dropout(0.25, inplace=False),
             ),
-            nn.BatchNorm1d(256),
-            nn.LeakyReLU(),
-            nn.Dropout(0.25, inplace=False),
-            nn.ConvTranspose1d(
-                in_channels=256, out_channels=512, stride=2, kernel_size=4, padding=1
+            nn.Sequential(
+                nn.ConvTranspose1d(
+                    in_channels=256 + test0(self.injections[2][1], 2)
+                    if self.injections[2][0]
+                    else 256,
+                    out_channels=512,
+                    stride=2,
+                    kernel_size=4,
+                    padding=1,
+                ),
+                nn.BatchNorm1d(512),
+                nn.LeakyReLU(),
             ),
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(),
-            nn.Conv1d(
-                in_channels=512, out_channels=256, stride=2, kernel_size=4, padding=1
+            nn.Sequential(
+                nn.Conv1d(
+                    in_channels=512 + test0(self.injections[3][1], 2)
+                    if self.injections[3][0]
+                    else 512,
+                    out_channels=256,
+                    stride=2,
+                    kernel_size=4,
+                    padding=1,
+                ),
+                nn.LeakyReLU(),
             ),
-            nn.LeakyReLU(),
-            nn.Conv1d(
-                in_channels=258, out_channels=128, stride=1, kernel_size=3, padding=1
+            nn.Sequential(
+                nn.Conv1d(
+                    in_channels=256 + test0(self.injections[4][1], 2)
+                    if self.injections[4][0]
+                    else 256,
+                    out_channels=128,
+                    stride=1,
+                    kernel_size=3,
+                    padding=1,
+                ),
+                nn.LeakyReLU(),
             ),
-            nn.LeakyReLU(),
-            nn.Conv1d(
-                in_channels=128, out_channels=128, stride=1, kernel_size=3, padding=1
+            nn.Sequential(
+                nn.Conv1d(
+                    in_channels=128 + test0(self.injections[5][1], 2)
+                    if self.injections[5][0]
+                    else 128,
+                    out_channels=128,
+                    stride=1,
+                    kernel_size=3,
+                    padding=1,
+                ),
+                nn.LeakyReLU(),
             ),
-            nn.LeakyReLU(),
-            nn.Conv1d(
-                in_channels=128, out_channels=1, stride=1, kernel_size=3, padding=1
+            nn.Sequential(
+                nn.Conv1d(
+                    in_channels=128 + test0(self.injections[6][1], 2)
+                    if self.injections[6][0]
+                    else 128,
+                    out_channels=1,
+                    stride=1,
+                    kernel_size=3,
+                    padding=1,
+                ),
             ),
         )
 
         self.trans_y = nn.Sequential(
-            nn.Conv1d(2, 4, kernel_size=4, stride=2, padding=1),
-            nn.ConvTranspose1d(2, 8, kernel_size=4, stride=2, padding=1),
-            nn.ConvTranspose1d(2, 16, kernel_size=4, stride=4, padding=1),
-            nn.Conv1d(2, 4, kernel_size=4, stride=2, padding=1),
-            nn.Conv1d(2, 2, kernel_size=4, stride=1, padding=1),
-            nn.Conv1d(2, 2, kernel_size=4, stride=1, padding=1),
+            nn.Conv1d(2, self.injections[0][1], kernel_size=3, stride=1, padding=1)
+            if self.injections[0][0] and self.injections[0][1] > 0
+            else nn.Identity(),
+            nn.Conv1d(2, self.injections[1][1], kernel_size=4, stride=2, padding=1)
+            if self.injections[1][0] and self.injections[1][1] > 0
+            else nn.Identity(),
+            nn.Conv1d(2, self.injections[2][1], kernel_size=3, stride=1, padding=1)
+            if self.injections[2][0] and self.injections[2][1] > 0
+            else nn.Identity(),
+            nn.ConvTranspose1d(
+                2, self.injections[3][1], kernel_size=4, stride=2, padding=1
+            )
+            if self.injections[3][0] and self.injections[3][1] > 0
+            else nn.Identity(),
+            nn.Conv1d(2, self.injections[4][1], kernel_size=3, stride=1, padding=1)
+            if self.injections[4][0] and self.injections[4][1] > 0
+            else nn.Identity(),
+            nn.Conv1d(2, self.injections[5][1], kernel_size=3, stride=1, padding=1)
+            if self.injections[5][0] and self.injections[5][1] > 0
+            else nn.Identity(),
+            nn.Conv1d(2, self.injections[6][1], kernel_size=3, stride=1, padding=1)
+            if self.injections[6][0] and self.injections[6][1] > 0
+            else nn.Identity(),
         )
 
     def forward(self, z: torch.Tensor, y: torch.Tensor):
-        z = self.latent(z).view([z.size(0), 128, 64])
-        input_gen = torch.cat([z, y], dim=1)
-        out = self.common[:10](input_gen)
-        return self.common[10:](torch.cat([out, y], dim=1))
+        y = y.cuda()
+        z = self.latent(z.cuda()).view([z.size(0), 128, 64])
+        out = z
+        for i in range(len(self.injections)):
+            if self.injections[i][0]:
+                new_y = self.trans_y[i](y)
+                out = torch.cat([out, new_y], dim=1)
+                out = self.common[i](out)
+            else:
+                out = self.common[i](out)
+        return out
 
 
 class LargerDiscriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, spec_norm_lin):
         super().__init__()
+        self.spec_norm_lin = spec_norm_lin
 
         self.common = nn.Sequential(
             nn.Conv1d(
@@ -715,9 +821,15 @@ class LargerDiscriminator(nn.Module):
             ),
             nn.Dropout(0.4, inplace=False),
             Flatten(),
-            nn.Linear(2048, 1),
+            spectral_norm(nn.Linear(2048, 1))
+            if self.spec_norm_lin
+            else nn.Linear(2048, 1),
         )
 
     def forward(self, x, y):
         input_disc = torch.cat([x, y], dim=1)
         return self.common(input_disc)
+
+
+def test0(a, b):
+    return b if a == 0 else a

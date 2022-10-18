@@ -1,5 +1,6 @@
 import sys
 from pympler.asizeof import asizeof
+from torch import manual_seed
 
 sys.path.insert(0, "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS")
 
@@ -19,14 +20,12 @@ import os
 import yaml
 
 if __name__ == "__main__":
-    torch.manual_seed(123)
-
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/tests_gens.yaml",
+        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/cvae_test.yaml",
         required=False,
     )
     parser.add_argument(
@@ -49,6 +48,9 @@ if __name__ == "__main__":
     name_exp = config.get("name_experiment")
     conf_ts_board = config.get("tensorboard_logs")
     conf_checkpoint_callback = config.get("checkpoint_callback")
+
+    seed = config["seed"]
+    torch.manual_seed(seed)
 
     tsboard_logger = TensorBoardLogger(
         conf_ts_board["save_dir"],
@@ -75,8 +77,14 @@ if __name__ == "__main__":
     if config["lit_model_type"] == "LitDCGAN":
         conf_lit_model["generator"] = eval(conf_lit_model["generator"])
         conf_lit_model["discriminator"] = eval(conf_lit_model["discriminator"])
-    else:
+    elif config["lit_model_type"] == "LitVAE":
         conf_lit_model["vae"] = eval(conf_lit_model["vae"])
+        conf_lit_model["conf_vae"]["encoder_model"] = eval(
+            conf_lit_model["conf_vae"]["encoder_model"]
+        )
+        conf_lit_model["conf_vae"]["decoder_model"] = eval(
+            conf_lit_model["conf_vae"]["decoder_model"]
+        )
     lit_model = eval(config["lit_model_type"])(log_dir=logs_folder, **conf_lit_model)
 
     # load trained model if checkpoutint is given

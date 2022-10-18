@@ -1,4 +1,5 @@
 name_experiment: small_wgp_latent20
+seed: 1234
 
 datamodule:
   # name: MyDataModule
