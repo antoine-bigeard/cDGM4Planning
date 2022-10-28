@@ -173,3 +173,7 @@ def compute_best_pred(model, val_z_best_metrics, x, y):
         samples[best_dist_y_idx.squeeze()],
         samples[best_l2_metric_idx.squeeze()],
     )
+
+
+def test0(a, b):
+    return b if a == 0 else a

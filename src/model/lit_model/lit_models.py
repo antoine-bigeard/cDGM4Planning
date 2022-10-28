@@ -9,6 +9,9 @@ import torch.nn.functional as F
 from torchmetrics import MetricCollection, PearsonCorrCoef
 from src.model.model.DCGAN import *
 from src.model.lit_model.metrics import *
+from src.model.lit_model.lit_model_utils import *
+from src.model.model.modules_diffusion import *
+from src.model.model.DDPM import *
 
 from src.utils import *
 
@@ -18,8 +21,8 @@ import copy
 class LitDCGAN(pl.LightningModule):
     def __init__(
         self,
-        generator: nn.Module = SmallGenerator,
-        discriminator: nn.Module = SmallDiscriminator,
+        generator: nn.Module = LargeGeneratorInject,
+        discriminator: nn.Module = LargerDiscriminator,
         conf_generator: dict = {"latent_dim": 100},
         conf_discriminator: dict = {},
         g_lr: float = 0.0002,
@@ -295,7 +298,7 @@ class LitDCGAN(pl.LightningModule):
 class LitVAE(pl.LightningModule):
     def __init__(
         self,
-        vae: nn.Module = SmallGenerator,
+        vae: nn.Module = LargeGeneratorInject,
         conf_vae: dict = {"latent_dim": 100},
         lr: float = 0.0002,
         b1: float = 0.5,
@@ -324,10 +327,10 @@ class LitVAE(pl.LightningModule):
         self.n_sample_for_metric = n_sample_for_metric
 
         self.validation_z = torch.randn(
-            self.validation_x_shape[0], self.latent_dim, device=self.device
+            self.validation_x_shape[0], self.vae.decoder.latent_dim, device=self.device
         )
         self.val_z_best_metrics = torch.randn(
-            self.n_sample_for_metric, self.latent_dim
+            self.n_sample_for_metric, self.vae.decoder.latent_dim
         ).to(self.device)
         rd_obs = random_observation(
             self.validation_x_shape, return_1_idx=True, random=False
@@ -337,17 +340,21 @@ class LitVAE(pl.LightningModule):
         self.current_training_step = 0
         self.current_validation_step = 0
 
-    def forward(self, z, y):
-        return self.vae(z.cuda(), y.cuda())
+    def forward(self, x, y):
+        return self.vae(x.cuda(), y.cuda())
 
-    def loss_fn(self, recon_x, x):
-        # BCE = F.binary_cross_entropy(recon_x.squeeze(), x.squeeze(), reduction="sum")
-        # KLD = -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())
+    def loss_fn(self, recon_x, x, mean, var, y):
+        # BCE = F.binary_cross_entropy(recon_x.squeeze(), x.squeeze())
+        # GAP_Y = dist_to_y_metric(recon_x, (x, y)).sum()
+        BCE = F.mse_loss(recon_x, x)
+        # BCE = L2_metric(recon_x, x, p=2).cuda().mean()
 
-        # return (BCE + KLD) / x.size(0)
+        KLD = torch.mean(0.5 * torch.sum(var.exp() + mean.pow(2) - 1 - var, dim=1))
+        return 100 * BCE, 1 * KLD
+        # return (BCE + KLD + GAP_Y) / x.size(0)
 
-        # return L2_metric(recon_x, x, p=2).mean().squeeze()
-        return F.mse_loss(recon_x, x)
+    # def loss_fn(self, recon_x, x):
+    #     return F.mse_loss(recon_x, x)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -356,14 +363,15 @@ class LitVAE(pl.LightningModule):
             y, idxs_1 = random_observation(x_shape, return_1_idx=True)
             y = y.to(self.device)
 
-        recon_x, z = self(x, y)
+        recon_x, mean, var, z = self(x, y)
 
-        loss = self.loss_fn(recon_x, x)
+        recon_loss, kld_loss = self.loss_fn(recon_x, x, mean, var, y)
 
-        self.log("train/loss", loss, prog_bar=True)
+        self.log("train/recon_loss", recon_loss, prog_bar=True)
+        self.log("train/kld", kld_loss, prog_bar=True)
         self.current_training_step += 1
 
-        return loss
+        return recon_loss + kld_loss
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
@@ -372,11 +380,12 @@ class LitVAE(pl.LightningModule):
             y, idxs_1 = random_observation(x_shape, return_1_idx=True)
             y = y.to(self.device)
 
-        recon_x, z = self(x, y)
+        recon_x, mean, var, z = self(x, y)
 
-        loss = self.loss_fn(recon_x, x)
+        recon_loss, kld_loss = self.loss_fn(recon_x, x, mean, var, y)
 
-        self.log("val/loss", loss, prog_bar=True)
+        self.log("val/recon_loss", recon_loss, prog_bar=True)
+        self.log("val/kld", kld_loss, prog_bar=True)
 
         if self.current_validation_step % 10 == 0:
             best_y, best_L2, best_sample_y, best_sample_L2 = self.metrics(
@@ -401,7 +410,7 @@ class LitVAE(pl.LightningModule):
 
         self.current_validation_step += 1
 
-        return loss
+        return recon_loss + kld_loss
 
     def configure_optimizers(self):
         opt = torch.optim.Adam(
@@ -420,7 +429,7 @@ class LitVAE(pl.LightningModule):
         sample_surfaces = []
         for s in range(self.validation_z.size(0)):
             sample_surfaces.append(
-                self.vae.inference(
+                self.vae.decoder(
                     self.validation_z,
                     torch.cat(
                         [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
@@ -483,12 +492,21 @@ class LitVAE(pl.LightningModule):
 class LitDDPM(pl.LightningModule):
     def __init__(
         self,
-        ema,
-        conf_ema,
-        diffusion,
-        conf_diffusion: dict = {},
-        ddpm: nn.Module = SmallGenerator,
-        conf_ddpm: dict = {},
+        ddpm=UNet_conditional,
+        conf_ddpm={
+            "c_in": 3,
+            "c_out": 128,
+            "time_dim": 256,
+        },
+        diffusion=Diffusion,
+        conf_diffusion: dict = {
+            "noise_steps": 1000,
+            "beta_start": 1e-4,
+            "beta_end": 0.02,
+            "surf_size": 256,
+        },
+        ema=EMA,
+        conf_ema={"beta": 0.995},
         lr: float = 0.0002,
         b1: float = 0.5,
         b2: float = 0.999,
@@ -497,20 +515,23 @@ class LitDDPM(pl.LightningModule):
         use_rd_y: bool = True,
         batch_size=512,
         n_sample_for_metric: int = 100,
+        latent_dim=20,
+        cfg_scale: int = 3,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         # instantiate models
-        self.conf_ema = conf_ema
-        self.ema = self.ema(**self.conf_ema)
+        self.conf_ddpm = conf_ddpm
+        self.model = ddpm(**self.conf_ddpm)
         self.conf_diffusion = conf_diffusion
         self.diffusion = diffusion(**self.conf_diffusion)
-        self.conf_ddpm = conf_ddpm
-        self.ddpm = ddpm(**self.conf_ddpm)
-        self.ema_model = copy.deepcopy(self.ddpm).eval().requires_grad_(False)
+        self.conf_ema = conf_ema
+        self.ema = ema(**self.conf_ema)
+        self.ema_model = copy.deepcopy(self.model).eval().requires_grad_(False)
+        self.cfg_scale = cfg_scale
 
-        self.latent_dim = self.conf_ddpm["latent_dim"]
+        self.latent_dim = latent_dim
         self.lr = lr
         self.b1 = b1
         self.b2 = b2
@@ -542,20 +563,20 @@ class LitDDPM(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+        x_shape = (y.size(0), *self.validation_x_shape[1:])
         if self.use_rd_y:
             y, idxs_1 = random_observation(x_shape, return_1_idx=True)
             y = y.to(self.device)
-        t = self.diffusion.sample_timesteps(x.size(0)).to(self.device)
-        x_t, noise = self.diffusion.noise_images(x, t)
-        if np.random.random() < 0.1:
-            y = None
-        predicted_noise = self.ddpm(x_t, t, y)
 
+        t = self.diffusion.sample_timesteps(x.shape[0]).to(self.device)
+        x_t, noise = self.diffusion.noise_images(x, t)
+        if self.cfg_scale > 0 and np.random.random() < 0.1:
+            y = None
+        predicted_noise = self.model(x_t, t, y)
         loss = F.mse_loss(noise, predicted_noise)
 
+        self.ema.step_ema(self.ema_model, self.model)
         self.log("train/loss", loss, prog_bar=True)
-        self.current_training_step += 1
-
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -565,8 +586,18 @@ class LitDDPM(pl.LightningModule):
             y, idxs_1 = random_observation(x_shape, return_1_idx=True)
             y = y.to(self.device)
 
-        samples_x = self.diffusion.sample(self.ddpm, n=y.size(0), labels=y)
-        ema_sampled_x = self.diffusion.sample(self.ema_model, n=y.size(0), labels=y)
+        t = self.diffusion.sample_timesteps(x.shape[0]).to(self.device)
+        x_t, noise = self.diffusion.noise_images(x, t)
+        if self.cfg_scale > 0 and np.random.random() < 0.1:
+            y = None
+        predicted_noise = self.model(x_t, t, y)
+        loss = F.mse_loss(noise, predicted_noise)
+        self.log("val/loss", loss, prog_bar=True)
+
+        self.ema.step_ema(self.ema_model, self.model)
+
+        # samples_x = self.diffusion.sample(self.model, n=y.size(0), labels=y)
+        # ema_sampled_x = self.diffusion.sample(self.ema_model, n=y.size(0), labels=y)
 
         # if self.current_validation_step % 10 == 0:
         #     best_y, best_L2, best_sample_y, best_sample_L2 = self.metrics(
@@ -590,10 +621,11 @@ class LitDDPM(pl.LightningModule):
         #             )
 
         self.current_validation_step += 1
+        return loss
 
     def configure_optimizers(self):
         opt = torch.optim.Adam(
-            self.vae.parameters(), lr=self.lr, betas=(self.b1, self.b2)
+            self.model.parameters(), lr=self.lr, betas=(self.b1, self.b2)
         )
         return opt
 
@@ -601,29 +633,31 @@ class LitDDPM(pl.LightningModule):
     #     self.current_validation_step = 0
     #     return super().on_validation_epoch_start()
 
-    # def on_train_epoch_start(self) -> None:
-    #     img_dir = os.path.join(self.log_dir, f"epoch_{self.current_epoch}")
-    #     os.makedirs(img_dir, exist_ok=True)
-    #     # log sampled images
-    #     sample_surfaces = []
-    #     for s in range(self.validation_z.size(0)):
-    #         sample_surfaces.append(
-    #             self.vae.inference(
-    #                 self.validation_z,
-    #                 torch.cat(
-    #                     [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
-    #                     0,
-    #                 ),
-    #             )
-    #         )
+    def on_train_epoch_start(self) -> None:
+        img_dir = os.path.join(self.log_dir, f"epoch_{self.current_epoch}")
+        os.makedirs(img_dir, exist_ok=True)
+        # log sampled images
+        sample_surfaces = []
+        for s in range(self.validation_z.size(0)):
+            sample_surfaces.append(
+                self.diffusion.sample(
+                    self.model,
+                    n=self.validation_z.size(0),
+                    labels=torch.cat(
+                        [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
+                        0,
+                    ).cuda(),
+                    cfg_scale=self.cfg_scale,
+                )
+            )
 
-    #     figs = create_figs(
-    #         sample_surfaces, self.y_1_idxs, self.validation_y, img_dir, save=True
-    #     )
-    #     for i, fig in enumerate(figs):
-    #         self.logger.experiment.add_figure(
-    #             f"generated_image_{i}", fig, self.current_epoch
-    #         )
+        figs = create_figs(
+            sample_surfaces, self.y_1_idxs, self.validation_y, img_dir, save=True
+        )
+        for i, fig in enumerate(figs):
+            self.logger.experiment.add_figure(
+                f"generated_image_{i}", fig, self.current_epoch
+            )
 
     # def on_validation_epoch_end(self):
 
@@ -656,7 +690,7 @@ class LitDDPM(pl.LightningModule):
             new_vals_metric_L2 = []
             for i, surf in enumerate(x):
                 idx, new_y, new_L2, new_samp_y, new_samp_L2 = compute_best_pred(
-                    self.vae.inference, self.val_z_best_metrics, surf, label
+                    self.diffusion.sample, surf, label
                 )
                 new_vals_metric_y.append(new_y)
                 new_vals_metric_L2.append(new_L2)

@@ -1,6 +1,12 @@
 import torch
 from tqdm import tqdm
 
+import math
+
+import torch
+from torch import nn
+import torch.nn.functional as F
+
 
 class Diffusion:
     def __init__(
@@ -8,30 +14,28 @@ class Diffusion:
         noise_steps=1000,
         beta_start=1e-4,
         beta_end=0.02,
-        img_size=256,
-        device="cuda",
+        surf_size=64,
     ):
         self.noise_steps = noise_steps
         self.beta_start = beta_start
         self.beta_end = beta_end
 
-        self.beta = self.prepare_noise_schedule().to(device)
+        self.beta = self.prepare_noise_schedule()
         self.alpha = 1.0 - self.beta
         self.alpha_hat = torch.cumprod(self.alpha, dim=0)
 
-        self.img_size = img_size
-        self.device = device
+        self.surf_size = surf_size
 
     def prepare_noise_schedule(self):
         return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
 
     def noise_images(self, x, t):
-        sqrt_alpha_hat = torch.sqrt(self.alpha_hat[t])[:, None, None, None]
-        sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t])[
-            :, None, None, None
-        ]
-        Ɛ = torch.randn_like(x)
-        return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * Ɛ, Ɛ
+        sqrt_alpha_hat = torch.sqrt(self.alpha_hat[t])[:, None, None].to(x.device)
+        sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t])[:, None, None].to(
+            x.device
+        )
+        epsilon = torch.randn_like(x)
+        return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * epsilon, epsilon
 
     def sample_timesteps(self, n):
         return torch.randint(low=1, high=self.noise_steps, size=(n,))
@@ -39,18 +43,18 @@ class Diffusion:
     def sample(self, model, n, labels, cfg_scale=3):
         model.eval()
         with torch.no_grad():
-            x = torch.randn((n, 3, self.img_size, self.img_size)).to(self.device)
+            x = torch.randn((n, 1, self.surf_size)).cuda()
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
-                t = (torch.ones(n) * i).long().to(self.device)
+                t = (torch.ones(n) * i).long().cuda()
                 predicted_noise = model(x, t, labels)
                 if cfg_scale > 0:
                     uncond_predicted_noise = model(x, t, None)
                     predicted_noise = torch.lerp(
                         uncond_predicted_noise, predicted_noise, cfg_scale
                     )
-                alpha = self.alpha[t][:, None, None, None]
-                alpha_hat = self.alpha_hat[t][:, None, None, None]
-                beta = self.beta[t][:, None, None, None]
+                alpha = self.alpha[t][:, None, None].cuda()
+                alpha_hat = self.alpha_hat[t][:, None, None].cuda()
+                beta = self.beta[t][:, None, None].cuda()
                 if i > 1:
                     noise = torch.randn_like(x)
                 else:
@@ -65,6 +69,4 @@ class Diffusion:
                     + torch.sqrt(beta) * noise
                 )
         model.train()
-        x = (x.clamp(-1, 1) + 1) / 2
-        x = (x * 255).type(torch.uint8)
         return x

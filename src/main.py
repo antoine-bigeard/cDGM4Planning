@@ -13,6 +13,8 @@ from src.data.datamodule.datamodule import MyDataModule
 from src.model.lit_model.lit_models import *
 from src.model.model.DCGAN import *
 from src.model.model.CVAE import *
+from src.model.model.DDPM import *
+from src.model.model.modules_diffusion import *
 from src.utils import read_yaml_config_file
 
 import argparse
@@ -85,6 +87,10 @@ if __name__ == "__main__":
         conf_lit_model["conf_vae"]["decoder_model"] = eval(
             conf_lit_model["conf_vae"]["decoder_model"]
         )
+    elif config["lit_model_type"] == "LitDDPM":
+        conf_lit_model["ema"] = eval(conf_lit_model["ema"])
+        conf_lit_model["diffusion"] = eval(conf_lit_model["diffusion"])
+        conf_lit_model["ddpm"] = eval(conf_lit_model["ddpm"])
     lit_model = eval(config["lit_model_type"])(log_dir=logs_folder, **conf_lit_model)
 
     # load trained model if checkpoutint is given

@@ -9,3 +9,4 @@ old_logs2/
 *__init__.py*
 *.out*
 nohup.out
+*logs*
