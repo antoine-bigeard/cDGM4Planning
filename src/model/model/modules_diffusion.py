@@ -164,7 +164,7 @@ class UNet_conditional(nn.Module):
 
         if y is not None:
             nonzero_idx = torch.where(y[:, 0, :])
-            y_classes = y[nonzero_idx[0], :, nonzero_idx[1]][:, 0]
+            y_classes = nonzero_idx[1]
             t += self.label_emb(y_classes.int())
 
         x = torch.cat([x, y[:, [1], :]], dim=1)

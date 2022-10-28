@@ -1,4 +1,4 @@
-name_experiment: new_injection_ddpm
+name_experiment: label_embed_ddpm
 seed: 1234
 
 datamodule:

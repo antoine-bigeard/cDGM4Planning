@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/cvae_test.yaml",
+        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/ddpm_test.yaml",
         required=False,
     )
     parser.add_argument(
