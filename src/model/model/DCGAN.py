@@ -33,11 +33,13 @@ class LargeGeneratorInject(nn.Module):
             (False, 2, 1),
             (False, 2, 1),
         ],  # (True to inject y, number of channels to use for convolution before injection (if 0 no convolution used))
+        encoding_layer=None,
     ):
         super().__init__()
         self.latent_dim = latent_dim
         self.injections = injections
         self.layers = layers
+        self.encoding_layer = encoding_layer
 
         self.latent = nn.Sequential(
             nn.Linear(self.latent_dim, 8192),
@@ -57,6 +59,8 @@ class LargeGeneratorInject(nn.Module):
 
     def forward(self, z: torch.Tensor, y: torch.Tensor):
         y = y.cuda()
+        if self.encoding_layer is not None:
+            y = self.encoding_layer(y).cuda()
         z = self.latent(z.cuda()).view([z.size(0), 128, 64])
         out = z
         for i in range(len(self.injections)):
@@ -83,10 +87,13 @@ class LargerDiscriminator(nn.Module):
             {"L": (2048, 1)},
         ],
         spectral_norm=[False, False, False, False, False, False, False, False],
+        sequential_cond: bool = False,
+        encoding_layer=None,
     ):
         super().__init__()
         self.layers = layers
         self.spectral_norm = spectral_norm
+        self.encoding_layer = encoding_layer
 
         self.common = nn.Sequential(
             *[
@@ -131,6 +138,8 @@ class LargerDiscriminator(nn.Module):
         # )
 
     def forward(self, x, y):
+        if self.encoding_layer is not None:
+            y = self.encoding_layer(y).cuda()
         input_disc = torch.cat([x, y], dim=1)
         return self.common(input_disc)
 

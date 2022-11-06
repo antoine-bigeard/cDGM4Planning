@@ -36,15 +36,32 @@ class LitDCGAN(pl.LightningModule):
         batch_size=512,
         wasserstein_gp_loss=False,
         n_sample_for_metric: int = 100,
+        sequential_cond: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         # instantiate models
+        self.sequential_cond = sequential_cond
+        self.encoding_layer_gen = None
+        self.encoding_layer_dis = None
+        if self.sequential_cond:
+            self.encoding_layer_gen = ConditionEncoding(
+                input_size=128, hidden_size=128, num_layers=1, batch_first=True
+            ).cuda()
+            self.encoding_layer_dis = ConditionEncoding(
+                input_size=128, hidden_size=128, num_layers=1, batch_first=True
+            ).cuda()
+            # self.encoding_layer = SequentialCat()
+
         self.conf_generator = conf_generator
         self.conf_discriminator = conf_discriminator
-        self.generator = generator(**self.conf_generator)
-        self.discriminator = discriminator(**self.conf_discriminator)
+        self.generator = generator(
+            **self.conf_generator, encoding_layer=self.encoding_layer_gen
+        )
+        self.discriminator = discriminator(
+            **self.conf_discriminator, encoding_layer=self.encoding_layer_dis
+        )
 
         self.latent_dim = self.conf_generator["latent_dim"]
         self.g_lr = g_lr
@@ -65,13 +82,32 @@ class LitDCGAN(pl.LightningModule):
             self.n_sample_for_metric, self.latent_dim
         ).to(self.device)
 
-        rd_obs = random_observation(
-            self.validation_x_shape, return_1_idx=True, random=False
-        )
-        self.validation_y, self.y_1_idxs = rd_obs[0].to(self.device), rd_obs[1]
+        if not sequential_cond:
+            rd_obs = random_observation(
+                self.validation_x_shape, return_1_idx=True, random=False
+            )
+            self.validation_y, self.y_1_idxs = rd_obs[0].to(self.device), rd_obs[1]
+
+        if self.sequential_cond:
+            rd_obs = [
+                random_observation(
+                    self.validation_x_shape, return_1_idx=True, random=True
+                )
+                for i in range(2)
+            ]
+            self.validation_y = torch.cat(
+                [obs[0].unsqueeze(1) for obs in rd_obs], dim=1
+            )
+            self.y_1_idxs = [
+                [rd_obs[i][1][j] for i in range(len(rd_obs))]
+                for j in range(len(rd_obs[0][1]))
+            ]
 
         self.current_training_step = 0
         self.current_validation_step = 0
+
+    def on_train_start(self) -> None:
+        self.validation_y = self.trainer.datamodule.val_dataset[:]
 
     def forward(self, z, y):
         return self.generator(z.cuda(), y.cuda())
@@ -187,26 +223,27 @@ class LitDCGAN(pl.LightningModule):
                 dis_dict["gradient_penalty"],
                 prog_bar=True,
             )
-        if self.current_validation_step % 10 == 0:
-            best_y, best_L2, best_sample_y, best_sample_L2 = self.metrics(
-                x[:10], self.validation_y
-            )
-            for k in best_y.keys():
-                self.log(f"val/dist_y/{k}", best_y[k])
-                self.log(f"val/L2/{k}", best_L2[k])
-            if self.current_validation_step == 0:
-                img_dir = os.path.join(self.log_dir, f"val_epoch_{self.current_epoch}")
-                figs = create_figs_best_metrics(
-                    [(best_sample_L2, "best_L2"), (best_sample_y, "best_y")],
-                    self.y_1_idxs,
-                    x[0],
-                    img_dir,
-                    save=True,
-                )
-                for i, fig in enumerate(figs):
-                    self.logger.experiment.add_figure(
-                        f"best_metrics_{i}", fig, self.current_epoch
-                    )
+        # if self.current_validation_step % 10 == 0:
+        #     best_y, best_L2, best_sample_y, best_sample_L2 = self.metrics(
+        #         x[:10], self.validation_y
+        #     )
+        #     for k in best_y.keys():
+        #         self.log(f"val/dist_y/{k}", best_y[k])
+        #         self.log(f"val/L2/{k}", best_L2[k])
+        #     if self.current_validation_step == 0:
+        #         img_dir = os.path.join(self.log_dir, f"val_epoch_{self.current_epoch}")
+        #         figs = create_figs_best_metrics(
+        #             [(best_sample_L2, "best_L2"), (best_sample_y, "best_y")],
+        #             self.y_1_idxs,
+        #             x[0],
+        #             img_dir,
+        #             save=True,
+        #             sequential_cond=self.sequential_cond,
+        #         )
+        #         for i, fig in enumerate(figs):
+        #             self.logger.experiment.add_figure(
+        #                 f"best_metrics_{i}", fig, self.current_epoch
+        #             )
 
         self.current_validation_step += 1
 
@@ -243,6 +280,7 @@ class LitDCGAN(pl.LightningModule):
             self.validation_y,
             img_dir=img_dir,
             save=True,
+            sequential_cond=self.sequential_cond,
         )
         for i, fig in enumerate(figs):
             self.logger.experiment.add_figure(
@@ -264,7 +302,12 @@ class LitDCGAN(pl.LightningModule):
                 )
             )
 
-        figs = create_figs(sample_surfaces, self.y_1_idxs, self.validation_y)
+        figs = create_figs(
+            sample_surfaces,
+            self.y_1_idxs,
+            self.validation_y,
+            sequential_cond=self.sequential_cond,
+        )
         for i, fig in enumerate(figs):
             self.logger.experiment.add_figure(
                 f"generated_image_{i}", fig, self.current_epoch
@@ -294,6 +337,9 @@ class LitDCGAN(pl.LightningModule):
     def on_validation_epoch_start(self) -> None:
         self.current_validation_step = 0
         return super().on_validation_epoch_start()
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
 
 
 class LitVAE(pl.LightningModule):
@@ -518,13 +564,20 @@ class LitDDPM(pl.LightningModule):
         n_sample_for_metric: int = 100,
         latent_dim=20,
         cfg_scale: int = 3,
+        sequential_cond: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
+        self.sequential_cond = sequential_cond
+        self.encoding_layer = None
+        if self.sequential_cond:
+            self.encoding_layer = ConditionEncoding(
+                input_size=128, hidden_size=128, num_layers=1, batch_first=True
+            ).cuda()
 
         # instantiate models
         self.conf_ddpm = conf_ddpm
-        self.model = ddpm(**self.conf_ddpm)
+        self.model = ddpm(**self.conf_ddpm, encoding_layer=self.encoding_layer)
         self.conf_diffusion = conf_diffusion
         self.diffusion = diffusion(**self.conf_diffusion)
         self.conf_ema = conf_ema
@@ -597,6 +650,12 @@ class LitDDPM(pl.LightningModule):
 
         self.ema.step_ema(self.ema_model, self.model)
 
+        if self.sequential_cond and self.current_validation_step == 0:
+            self.validation_y = y[: self.validation_x_shape[0]]
+            self.y_1_idxs = []
+            for i in range(self.validation_y.shape[0]):
+                pass
+
         # samples_x = self.diffusion.sample(self.model, n=y.size(0), labels=y)
         # ema_sampled_x = self.diffusion.sample(self.ema_model, n=y.size(0), labels=y)
 
@@ -653,7 +712,12 @@ class LitDDPM(pl.LightningModule):
             )
 
         figs = create_figs(
-            sample_surfaces, self.y_1_idxs, self.validation_y, img_dir, save=True
+            sample_surfaces,
+            self.y_1_idxs,
+            self.validation_y,
+            img_dir,
+            save=True,
+            sequential_cond=self.sequential_cond,
         )
         for i, fig in enumerate(figs):
             self.logger.experiment.add_figure(
@@ -701,3 +765,6 @@ class LitDDPM(pl.LightningModule):
             best_dist_y[idx] = sum(new_vals_metric_y) / len(x)
             best_L2[idx] = sum(new_vals_metric_L2) / len(x)
         return best_dist_y, best_L2, best_samp_y, best_samp_L2
+
+    def on_training_epoch_start(self):
+        pass

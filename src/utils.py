@@ -39,8 +39,6 @@ def random_observation(shape, return_1_idx=False, random=True):
         if random:
             y[i, 1, :] = torch.rand(shape[2]) * single_one
         else:
-            # torch.manual_seed(123)
-            # y[i, 1, :] = torch.rand(shape[2]) * single_one
             y[i, 1, :] = X0 * single_one
     if return_1_idx:
         return y, y_ones_idx
@@ -95,6 +93,7 @@ def create_figs(
     validation_y,
     img_dir=None,
     save=False,
+    sequential_cond=False,
 ):
     figs = []
     for i, surface in enumerate(sample_surfaces):
@@ -102,11 +101,16 @@ def create_figs(
         for s in surface:
             plt.plot(s.squeeze().detach().cpu(), color="blue")
 
-        observation_pt = (
-            y_1_idxs[i],
-            validation_y[i, :, y_1_idxs[i]][1].cpu(),
-        )
-        plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
+        if not sequential_cond:
+            observation_pt = (y_1_idxs[i], validation_y[i, 1, y_1_idxs[i]].cpu())
+            plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
+        else:
+            for j in range(len(y_1_idxs[i])):
+                observation_pt = (
+                    y_1_idxs[i][j],
+                    validation_y[i, j, 1, y_1_idxs[i][j]].cpu(),
+                )
+                plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
         # plt.ylim((-3, -3))
         if save:
             plt.savefig(os.path.join(img_dir, f"test_{i}"))
@@ -177,3 +181,12 @@ def compute_best_pred(model, val_z_best_metrics, x, y):
 
 def test0(a, b):
     return b if a == 0 else a
+
+
+def get_idx_val(y, batch=True):
+    if batch:
+        nonzero_idx = torch.where(y[:, 0, :])
+        return nonzero_idx, y[nonzero_idx[0], 1, nonzero_idx[1]]
+    else:
+        nonzero_idx = torch.where(y[0, :])
+        return nonzero_idx, y[1, nonzero_idx[1]]

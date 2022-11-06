@@ -16,6 +16,50 @@ def l2normalize(v, eps=1e-12):
     return v / (v.norm() + eps)
 
 
+def clean_padding_y(y, pad_value=-1):
+    no_padding = torch.where(y[:, 0, 0] > -1)[0]
+    return y[no_padding, :, :]
+
+
+class SequentialCat(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.encoding_layer = nn.Conv2d(10, 1, 3, 1, 1)
+
+    def forward(self, x):
+        return self.encoding_layer(x).squeeze()
+
+
+class ConditionEncoding(nn.Module):
+    def __init__(
+        self, input_size=128, hidden_size=128, num_layers=1, batch_first=True
+    ) -> None:
+        super().__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.batch_first = batch_first
+
+        self.recurrent_layer = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=batch_first,
+        )
+
+    def forward(self, y):
+        out = torch.zeros(y.shape[0], 2, self.hidden_size // 2)
+        for i, seq in enumerate(y):
+            unpadded_seq = clean_padding_y(seq)
+            unpadded_seq = unpadded_seq.reshape(
+                unpadded_seq.shape[0], unpadded_seq.shape[1] * unpadded_seq.shape[2]
+            )
+            out[i] = self.recurrent_layer(unpadded_seq)[0][-1].reshape(
+                2, self.hidden_size // 2
+            )
+        return out
+
+
 class SpectralNorm(nn.Module):
     def __init__(self, module, name="weight", power_iterations=1):
         super(SpectralNorm, self).__init__()

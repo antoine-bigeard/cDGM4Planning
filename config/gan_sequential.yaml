@@ -1,16 +1,18 @@
-name_experiment: inject_6_larger
+name_experiment: seq_gan_seperated_encode
 seed: 1234
 
 datamodule:
   # name: MyDataModule
-  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModels.jl/surfaces64.hdf5
-  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModels.jl/observations64.hdf5
+  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/surfaces_multipleobs.hdf5 #/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/surfaces64.hdf5 #
+  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/observations_multipleobs.hdf5 #/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/observations64.hdf5 #
   batch_size: 512
   shuffle: False
   num_workers: 4
   pct_train: 0.8
   pct_val: 0.1999
   pct_test: 0.0001
+  shuffle: False
+  sequential_cond: True
 
 lit_model_type: LitDCGAN
 lit_model:
@@ -62,9 +64,10 @@ lit_model:
   b1: 0.5
   b2: 0.999
   validation_x_shape: [10, 1, 64]
-  use_rd_y: True
+  use_rd_y: False
   batch_size: 512
   wasserstein_gp_loss: False
+  sequential_cond: True
 
 trainer:
   auto_lr_find: False

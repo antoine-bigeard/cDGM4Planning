@@ -121,7 +121,14 @@ class Up(nn.Module):
 
 
 class UNet_conditional(nn.Module):
-    def __init__(self, c_in=3, c_out=3, time_dim=256, num_classes=64):
+    def __init__(
+        self,
+        c_in=3,
+        c_out=3,
+        time_dim=256,
+        num_classes=64,
+        encoding_layer=None,
+    ):
         super().__init__()
         self.time_dim = time_dim
         self.inc = DoubleConv(c_in, 64)
@@ -148,6 +155,9 @@ class UNet_conditional(nn.Module):
         #     nn.Conv1d(2, 4, 3, 1, 1), nn.Flatten(), nn.Linear(4 * 64, self.time_dim)
         # )
         self.label_emb = nn.Embedding(64, self.time_dim)
+        # self.label_emb = nn.Linear(1, self.time_dim)
+        # self.val_emb = nn.Linear(1, self.time_dim)
+        self.encoding_layer = encoding_layer
 
     def pos_encoding(self, t, channels):
         inv_freq = (
@@ -159,15 +169,21 @@ class UNet_conditional(nn.Module):
         return pos_enc
 
     def forward(self, x, t, y):
+        if self.encoding_layer:
+            y = self.encoding_layer(y).cuda()
+
         t = t.unsqueeze(-1).type(torch.float)
         t = self.pos_encoding(t, self.time_dim)
 
-        if y is not None:
-            nonzero_idx = torch.where(y[:, 0, :])
-            y_classes = nonzero_idx[1]
-            t += self.label_emb(y_classes.int())
+        # if y is not None:
+        #     nonzero_idx = torch.where(y[:, 0, :])
+        #     y_classes = nonzero_idx[1]
+        # t += self.label_emb(y_classes.int())
+        # t += self.label_emb(y_classes.float().unsqueeze(1)) + self.val_emb(
+        #     y[nonzero_idx[0], 1, nonzero_idx[1]].unsqueeze(1)
+        # )
 
-        x = torch.cat([x, y[:, [1], :]], dim=1)
+        x = torch.cat([x, y], dim=1)
         x1 = self.inc(x)
         x2 = self.down1(x1, t)
         x2 = self.sa1(x2)

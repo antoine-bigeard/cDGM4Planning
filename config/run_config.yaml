@@ -9,8 +9,8 @@ datamodule:
   shuffle: False
   num_workers: 4
   pct_train: 0.8
-  pct_val: 0.2
-  pct_test: 0
+  pct_val: 0.1999
+  pct_test: 0.0001
 
 lit_model_type: LitDCGAN
 lit_model:
