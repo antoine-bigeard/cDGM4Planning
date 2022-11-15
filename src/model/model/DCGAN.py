@@ -57,8 +57,13 @@ class LargeGeneratorInject(nn.Module):
             *[BasicBlockY(inject) for inject in self.injections]
         )
 
+    def inference(self, y: torch.Tensor, latent_dim=20):
+        z = torch.randn(y.shape[0], latent_dim).cuda()
+        return self.forward(z, y)
+
     def forward(self, z: torch.Tensor, y: torch.Tensor):
         y = y.cuda()
+        z = z
         if self.encoding_layer is not None:
             y = self.encoding_layer(y).cuda()
         z = self.latent(z.cuda()).view([z.size(0), 128, 64])

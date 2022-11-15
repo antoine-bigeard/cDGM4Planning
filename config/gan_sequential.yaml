@@ -1,5 +1,6 @@
-name_experiment: seq_gan_seperated_encode
+name_experiment: gan_seq_bce
 seed: 1234
+mode: fit
 
 datamodule:
   # name: MyDataModule
@@ -9,8 +10,8 @@ datamodule:
   shuffle: False
   num_workers: 4
   pct_train: 0.8
-  pct_val: 0.1999
-  pct_test: 0.0001
+  pct_val: 0.199
+  pct_test: 0.001
   shuffle: False
   sequential_cond: True
 
@@ -76,7 +77,7 @@ trainer:
   fast_dev_run: False
   log_every_n_steps: 10
   accelerator: gpu
-  devices: [3]
+  devices: [1]
   # flush_logs_every_n_steps: 10
   # learning_rate: 0.0001
 

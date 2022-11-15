@@ -6,7 +6,9 @@ from PIL import Image
 from random import randrange
 import matplotlib.pyplot as plt
 import os
-from src.model.lit_model.metrics import *
+import seaborn as sns
+
+# from src.model.lit_model.metrics import *
 
 # fmt: off
 X0 = torch.Tensor([ 1.2862, -1.5020, -1.1767, -0.8801, -0.6243, -0.4191, -0.2709, -0.1829,
@@ -47,10 +49,6 @@ def random_observation(shape, return_1_idx=False, random=True):
 
 def calculate_gradient_penalty(D, real_samples, fake_samples, labels, device):
     torch.set_grad_enabled(True)
-    """Calculates the gradient penalty loss for WGAN GP.
-    Warning: It doesn't compute the gradient w.r.t the labels, only w.r.t
-    the interpolated real and fake samples, as in the WGAN GP paper.
-    """
     # Random weight term for interpolation between real and fake samples
     alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1))).to(device)
     labels = torch.Tensor(labels).to(device)
@@ -75,22 +73,9 @@ def calculate_gradient_penalty(D, real_samples, fake_samples, labels, device):
     return gradient_penalty
 
 
-def idx2onehot(idx, n):
-
-    assert torch.max(idx).item() < n
-
-    if idx.dim() == 1:
-        idx = idx.unsqueeze(1)
-    onehot = torch.zeros(idx.size(0), n).to(idx.device)
-    onehot.scatter_(1, idx, 1)
-
-    return onehot
-
-
 def create_figs(
     sample_surfaces,
     y_1_idxs,
-    validation_y,
     img_dir=None,
     save=False,
     sequential_cond=False,
@@ -102,15 +87,53 @@ def create_figs(
             plt.plot(s.squeeze().detach().cpu(), color="blue")
 
         if not sequential_cond:
-            observation_pt = (y_1_idxs[i], validation_y[i, 1, y_1_idxs[i]].cpu())
+            # observation_pt = (y_1_idxs[i], validation_y[i, 1, y_1_idxs[i]].cpu())
+            observation_pt = (y_1_idxs[0][i].cpu(), y_1_idxs[1][i].cpu())
             plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
         else:
-            for j in range(len(y_1_idxs[i])):
-                observation_pt = (
-                    y_1_idxs[i][j],
-                    validation_y[i, j, 1, y_1_idxs[i][j]].cpu(),
-                )
-                plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
+            for j in range(len(y_1_idxs[0][i])):
+                if y_1_idxs[0][i][j] != -1:
+                    observation_pt = (
+                        y_1_idxs[0][i][j].cpu(),
+                        y_1_idxs[1][i][j].cpu(),
+                    )
+                    plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
+        # plt.ylim((-3, -3))
+        if save:
+            plt.savefig(os.path.join(img_dir, f"test_{i}"))
+        figs.append(fig)
+    return figs
+
+
+def test0(a, b):
+    return b if a == 0 else a
+
+
+def create_figs_2D(
+    sample_surfaces,
+    y_1_idxs,
+    img_dir=None,
+    save=False,
+    sequential_cond=False,
+):
+    figs = []
+    for i, surface in enumerate(sample_surfaces):
+        fig = plt.figure()
+        for s in surface:
+            sns.heatmap(s.squeeze().detach().cpu(), cmap="hot", interpolation="nearest")
+
+        if not sequential_cond:
+            # observation_pt = (y_1_idxs[i], validation_y[i, 1, y_1_idxs[i]].cpu())
+            observation_pt = (y_1_idxs[0][i].cpu(), y_1_idxs[1][i].cpu())
+            plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
+        else:
+            for j in range(len(y_1_idxs[0][i])):
+                if y_1_idxs[0][i][j] != -1:
+                    observation_pt = (
+                        y_1_idxs[0][i][j].cpu(),
+                        y_1_idxs[1][i][j].cpu(),
+                    )
+                    plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
         # plt.ylim((-3, -3))
         if save:
             plt.savefig(os.path.join(img_dir, f"test_{i}"))
@@ -124,69 +147,86 @@ def create_figs_best_metrics(
     validation_x,
     img_dir=None,
     save=False,
+    sequential_cond=False,
 ):
     figs = []
-    for idx in y_1_idx:
+    for i in range(y_1_idx[0].shape[0]):
         fig = plt.figure()
-        for (sample, name) in best_samples:
-            plt.plot(sample[idx].squeeze().detach().cpu(), label=name)
-        plt.plot(validation_x.squeeze().detach().cpu(), label="x")
-        observation_pt = (
-            idx,
-            validation_x[0, idx].cpu(),
-        )
-        plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
+        for (name, sample) in best_samples.items():
+            s = sample[i].squeeze().detach().cpu()
+            if name == "std":
+                samp = best_samples["best_L2"][i].squeeze().detach().cpu()
+                down = samp - 2 * s
+                up = samp + 2 * s
+                plt.fill_between(
+                    np.array([i for i in range(samp.shape[-1])]), down, up, alpha=0.2
+                )
+            else:
+                plt.plot(s, label=name)
+        plt.plot(validation_x[i].squeeze().detach().cpu(), label="real_obs")
+        if not sequential_cond:
+            observation_pt = (y_1_idx[0][i].cpu(), y_1_idx[1][i].cpu())
+            plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
+        else:
+            for j in range(len(y_1_idx[0][i])):
+                if y_1_idx[0][i][j] != -1:
+                    observation_pt = (
+                        y_1_idx[0][i][j].cpu(),
+                        y_1_idx[1][i][j].cpu(),
+                    )
+                    plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
         plt.legend(loc="upper left")
         figs.append(fig)
         if save:
             os.makedirs(img_dir, exist_ok=True)
-            plt.savefig(os.path.join(img_dir, f"test_best_metric_{idx}"))
+            plt.savefig(os.path.join(img_dir, f"test_best_metric_{i}"))
 
     return figs
 
 
-def compute_best_pred(model, val_z_best_metrics, x, y):
-    z = val_z_best_metrics.cuda()
-    input_y = y.clone().cuda()
-    idx = torch.where(input_y[0] == 1)
-    input_y[1, idx] = x[0, idx]
-    input_y = torch.cat([input_y.unsqueeze(0) for i in range(z.size(0))])
-    samples = model(z, input_y)
-    l2_metric = L2_metric(
-        samples,
-        (
-            torch.cat([x.unsqueeze(0) for i in range(z.size(0))], dim=0),
-            input_y,
-        ),
-        p=2,
-    )
-    dist_y = dist_to_y_metric(
-        samples,
-        (
-            torch.cat([x.unsqueeze(0) for i in range(z.size(0))], dim=0),
-            input_y,
-        ),
-    )
-    best_l2_metric_idx = l2_metric.argmin(dim=0, keepdim=True)
-    best_dist_y_idx = dist_y.argmin(dim=0, keepdim=True)
-
-    return (
-        int(idx[0].squeeze()),
-        dist_y[best_dist_y_idx].squeeze(),
-        l2_metric[best_l2_metric_idx].squeeze(),
-        samples[best_dist_y_idx.squeeze()],
-        samples[best_l2_metric_idx.squeeze()],
-    )
-
-
-def test0(a, b):
-    return b if a == 0 else a
-
-
-def get_idx_val(y, batch=True):
-    if batch:
-        nonzero_idx = torch.where(y[:, 0, :])
-        return nonzero_idx, y[nonzero_idx[0], 1, nonzero_idx[1]]
-    else:
+def get_idx_val(y):
+    # size [2, 64]
+    if y.dim() == 2:
         nonzero_idx = torch.where(y[0, :])
         return nonzero_idx, y[1, nonzero_idx[1]]
+    # size [B, 2, 64]
+    if y.dim() == 3:
+        nonzero_idx = torch.where(y[:, 0, :])
+        return nonzero_idx[1], y[nonzero_idx[0], 1, nonzero_idx[1]]
+    # size [B, Seq_size, 2, 64]
+    if y.dim() == 4:
+        idxs = torch.full((y.shape[0], y.shape[1]), -1, device=y.device)
+        values = torch.full(
+            (y.shape[0], y.shape[1]), -1, dtype=y.dtype, device=y.device
+        )
+        nonzero_idx = torch.where(y[:, :, 0, :] == 1)
+        idxs[nonzero_idx[0], nonzero_idx[1]] = nonzero_idx[2]
+        values[nonzero_idx[0], nonzero_idx[1]] = y[
+            nonzero_idx[0], nonzero_idx[1], 1, nonzero_idx[2]
+        ]
+        return idxs, values
+
+
+def get_idx_val_2D(y):
+    # size [2, 64, 64]
+    if y.dim() == 3:
+        nonzero_idx = torch.where(y[0, :, :])
+        return nonzero_idx, y[1, nonzero_idx[1], nonzero_idx[2]]
+    # size [B, 2, 64, 64]
+    if y.dim() == 4:
+        nonzero_idx = torch.where(y[:, 0, :, :])
+        return nonzero_idx[1], y[nonzero_idx[0], 1, nonzero_idx[1], nonzero_idx[2]]
+    # size [B, Seq_size, 2, 64, 64]
+    if y.dim() == 5:
+        idxs = torch.full((y.shape[0], y.shape[1], 2), -1, device=y.device)
+        values = torch.full(
+            (y.shape[0], y.shape[1]), -1, dtype=y.dtype, device=y.device
+        )
+        nonzero_idx = torch.where(y[:, :, 0, :, :] == 1)
+        idxs[nonzero_idx[0], nonzero_idx[1]] = torch.stack(
+            [nonzero_idx[2], nonzero_idx[3]]
+        )
+        values[nonzero_idx[0], nonzero_idx[1], nonzero_idx[2]] = y[
+            nonzero_idx[0], nonzero_idx[1], 1, nonzero_idx[2], nonzero_idx[3]
+        ]
+        return idxs, values

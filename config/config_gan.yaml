@@ -9,8 +9,8 @@ datamodule:
   shuffle: False
   num_workers: 4
   pct_train: 0.8
-  pct_val: 0.1999
-  pct_test: 0.0001
+  pct_val: 0.2
+  pct_test: 0.0
 
 lit_model_type: LitDCGAN
 lit_model:
@@ -29,12 +29,12 @@ lit_model:
     ]
     injections: [
       [True, 0, 1],
-      [False, 8, 0.5],
-      [False, 8, 1],
-      [False, 8, 2],
+      [True, 2, 0.5],
+      [True, 2, 1],
+      [True, 2, 2],
       [True, 0, 1],
-      [False, 0, 1],
-      [False, 8, 1],
+      [True, 2, 1],
+      [True, 2, 1],
     ]
   conf_discriminator:
     layers: [
@@ -48,11 +48,11 @@ lit_model:
       {L: [2048, 1]},
     ]
     spectral_norm: [
-      True,
       False,
-      True,
       False,
-      True,
+      False,
+      False,
+      False,
       False,
       False,
       False,
@@ -61,7 +61,7 @@ lit_model:
   d_lr: 0.0002
   b1: 0.5
   b2: 0.999
-  validation_x_shape: [10, 1, 64]
+  validation_x_shape: [1, 1, 64]
   use_rd_y: True
   batch_size: 512
   wasserstein_gp_loss: False

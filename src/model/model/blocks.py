@@ -238,6 +238,9 @@ LAYERS = {
     "Cv": nn.Conv1d,
     "CvT": nn.ConvTranspose1d,
     "BN": nn.BatchNorm1d,
+    "Cv2d": nn.Conv2d,
+    "CvT2d": nn.ConvTranspose2d,
+    "BN2d": nn.BatchNorm2d,
     "LR": nn.LeakyReLU,
     "D": nn.Dropout,
     "L": nn.Linear,
@@ -267,7 +270,11 @@ LAYERS = {
 def BasicBlock(layer_params, injection=None):
     layers = []
     for key, item in layer_params.items():
-        if injection is not None and injection[0] and key in ["Cv", "CvT"]:
+        if (
+            injection is not None
+            and injection[0]
+            and key in ["Cv", "CvT", "Cv2d", "CvT2d"]
+        ):
             cv_param = list(item)
             cv_param[0] += test0(injection[1], 2)
             layers.append(
@@ -297,6 +304,26 @@ def BasicBlockY(injection):
             trans = nn.Conv1d(2, injection[1], 4, int(1 / injection[2]), 1)
         else:
             trans = nn.ConvTranspose1d(2, injection[1], 4, injection[2], 1)
+    return trans
+
+
+def BasicBlockY2d(injection):
+    injection = injection
+    if not injection[0] or (injection[1] == 0 and injection[2] == 1):
+        trans = nn.Identity()
+    elif injection[1] == 0:
+        trans = (
+            nn.Upsample(scale_factor=injection[2])
+            if injection[3] > 1
+            else nn.AvgPool2d(kernel_size=4, stride=1 / injection[2], padding=1)
+        )
+    elif injection[1] > 0 and injection[2] == 1:
+        trans = nn.Conv2d(2, injection[1], 3, 1, 1)
+    else:
+        if injection[2] < 1:
+            trans = nn.Conv2d(2, injection[1], 4, int(1 / injection[2]), 1)
+        else:
+            trans = nn.ConvTranspose2d(2, injection[1], 4, injection[2], 1)
     return trans
 
 

@@ -1,5 +1,6 @@
-name_experiment: seq_ddpm
+name_experiment: seq_ddpm_test_metrics
 seed: 1234
+mode: test
 
 datamodule:
   # name: MyDataModule
@@ -9,8 +10,8 @@ datamodule:
   shuffle: False
   num_workers: 4
   pct_train: 0.8
-  pct_val: 0.1999
-  pct_test: 0.0001
+  pct_val: 0.19
+  pct_test: 0.01
   sequential_cond: True
 
 lit_model_type: LitDDPM
@@ -38,6 +39,12 @@ lit_model:
   batch_size: 1024
   cfg_scale: 0
   sequential_cond: True
+  encoding_layer: ConditionEncoding
+  conf_encoding_layer:
+    input_size: 128
+    hidden_size: 128
+    num_layers: 1
+    batch_first: True
 
 trainer:
   auto_lr_find: False
@@ -58,4 +65,4 @@ checkpoint_callback:
   save_last: True
   filename: best-checkpoint
 
-checkpoint_path: null
+checkpoint_path: logs/seq_ddpm/version_9/checkpoints/epoch=79-step=12560.ckpt

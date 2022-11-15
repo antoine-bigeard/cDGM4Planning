@@ -12,6 +12,8 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from src.data.datamodule.datamodule import MyDataModule
 from src.model.lit_model.lit_models import *
 from src.model.model.DCGAN import *
+from src.model.lit_model.lit_models2d import *
+from src.model.model.DCGAN2d import *
 from src.model.model.CVAE import *
 from src.model.model.DDPM import *
 from src.model.model.modules_diffusion import *
@@ -27,7 +29,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/config_gan.yaml",
+        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/gan_ore_maps.yaml",
         required=False,
     )
     parser.add_argument(
@@ -43,6 +45,7 @@ if __name__ == "__main__":
     mode = args.mode
 
     config = read_yaml_config_file(path_config)
+    mode = config["mode"]
     checkpoint_path = config.get("checkpoint_path")
     conf_datamodule = config.get("datamodule")
     conf_lit_model = config.get("lit_model")
@@ -69,14 +72,16 @@ if __name__ == "__main__":
     with open(os.path.join(logs_folder, "config.yaml"), "w") as dst:
         yaml.dump(config, dst)
 
-    os.system(f"cp src/model/model/DCGAN.py {os.path.join(logs_folder, 'DCGAN.py')}")
-    os.system(f"cp src/model/model/blocks.py {os.path.join(logs_folder, 'blocks.py')}")
+    # os.system(f"cp src/model/model/DCGAN.py {os.path.join(logs_folder, 'DCGAN.py')}")
+    # os.system(f"cp src/model/model/blocks.py {os.path.join(logs_folder, 'blocks.py')}")
 
     # configure data module
     datamodule = MyDataModule(**conf_datamodule)
 
     # configure lit model
-    if config["lit_model_type"] == "LitDCGAN":
+    if "encoding_layer" in conf_lit_model:
+        conf_lit_model["encoding_layer"] = eval(conf_lit_model["encoding_layer"])
+    if config["lit_model_type"] in ["LitDCGAN", "LitDCGAN2d"]:
         conf_lit_model["generator"] = eval(conf_lit_model["generator"])
         conf_lit_model["discriminator"] = eval(conf_lit_model["discriminator"])
     elif config["lit_model_type"] == "LitVAE":
@@ -87,7 +92,7 @@ if __name__ == "__main__":
         conf_lit_model["conf_vae"]["decoder_model"] = eval(
             conf_lit_model["conf_vae"]["decoder_model"]
         )
-    elif config["lit_model_type"] == "LitDDPM":
+    elif config["lit_model_type"] == ["LitDDPM", "LitDDPM2d"]:
         conf_lit_model["ema"] = eval(conf_lit_model["ema"])
         conf_lit_model["diffusion"] = eval(conf_lit_model["diffusion"])
         conf_lit_model["ddpm"] = eval(conf_lit_model["ddpm"])
@@ -95,7 +100,8 @@ if __name__ == "__main__":
 
     # load trained model if checkpoutint is given
     if checkpoint_path is not None:
-        lit_model.load_from_checkpoint(checkpoint_path)
+        lit_model = lit_model.load_from_checkpoint(checkpoint_path)
+        lit_model.log_dir = logs_folder
 
     early_stop_callback = EarlyStopping(
         monitor="train/loss",

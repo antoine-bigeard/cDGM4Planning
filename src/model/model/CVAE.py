@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.utils import idx2onehot
 
 
 class Encoder(nn.Module):
