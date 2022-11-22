@@ -3,10 +3,12 @@ import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
+import matplotlib.cm as cm
 from random import randrange
 import matplotlib.pyplot as plt
 import os
 import seaborn as sns
+import random as rd
 
 # from src.model.lit_model.metrics import *
 
@@ -118,26 +120,37 @@ def create_figs_2D(
 ):
     figs = []
     for i, surface in enumerate(sample_surfaces):
-        fig = plt.figure()
-        for s in surface:
-            sns.heatmap(s.squeeze().detach().cpu(), cmap="hot", interpolation="nearest")
-
-        if not sequential_cond:
-            # observation_pt = (y_1_idxs[i], validation_y[i, 1, y_1_idxs[i]].cpu())
-            observation_pt = (y_1_idxs[0][i].cpu(), y_1_idxs[1][i].cpu())
-            plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
-        else:
-            for j in range(len(y_1_idxs[0][i])):
-                if y_1_idxs[0][i][j] != -1:
-                    observation_pt = (
-                        y_1_idxs[0][i][j].cpu(),
-                        y_1_idxs[1][i][j].cpu(),
+        cmap = cm.viridis
+        for idx_s, s in enumerate(surface):
+            sample_img_dir = os.path.join(img_dir, f"test_{i}")
+            os.makedirs(sample_img_dir, exist_ok=True)
+            fig = plt.figure()
+            plt.imshow(s.squeeze().detach().cpu(), cmap=cmap)
+            if not sequential_cond:
+                for j in range(len(y_1_idxs[0][i])):
+                    observation_pt = (y_1_idxs[0][i][j].cpu(), y_1_idxs[1][i][j].cpu())
+                    plt.scatter(
+                        [observation_pt[0][1]],
+                        [observation_pt[0][0]],
+                        color=cmap(observation_pt[1]),
+                        marker=".",
+                        s=150,
+                        edgecolors="black",
                     )
-                    plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
-        # plt.ylim((-3, -3))
-        if save:
-            plt.savefig(os.path.join(img_dir, f"test_{i}"))
-        figs.append(fig)
+            else:
+                for j in range(len(y_1_idxs[0][i])):
+                    if y_1_idxs[0][i][j] != -1:
+                        observation_pt = (
+                            y_1_idxs[0][i][j].cpu(),
+                            y_1_idxs[1][i][j].cpu(),
+                        )
+                        plt.scatter(
+                            [observation_pt[0]], [observation_pt[1]], s=25, c="r"
+                        )
+            if save:
+                plt.savefig(os.path.join(sample_img_dir, f"sample_{idx_s}"))
+            figs.append(fig)
+            plt.close()
     return figs
 
 
@@ -149,6 +162,7 @@ def create_figs_best_metrics(
     save=False,
     sequential_cond=False,
 ):
+    paths = []
     figs = []
     for i in range(y_1_idx[0].shape[0]):
         fig = plt.figure()
@@ -179,9 +193,66 @@ def create_figs_best_metrics(
         figs.append(fig)
         if save:
             os.makedirs(img_dir, exist_ok=True)
-            plt.savefig(os.path.join(img_dir, f"test_best_metric_{i}"))
+            path_img = os.path.join(img_dir, f"test_best_metric_{i}.png")
+            plt.savefig(path_img)
+            paths.append(path_img)
+    return figs, paths
 
-    return figs
+
+def create_figs_best_metrics_2D(
+    best_samples,
+    y_1_idx,
+    validation_x,
+    img_dir=None,
+    save=False,
+    sequential_cond=False,
+):
+    paths = []
+    figs = []
+    for i in range(y_1_idx[0].shape[0]):
+        sample_img_dir = os.path.join(img_dir, f"test_{i}")
+        os.makedirs(sample_img_dir, exist_ok=True)
+        cmap = cm.viridis
+        for (name, sample) in best_samples.items():
+            fig = plt.figure()
+            plt.imshow(sample.squeeze().detach().cpu(), cmap=cmap)
+            for j in range(len(y_1_idx[0][i])):
+                observation_pt = (y_1_idx[0][i][j].cpu(), y_1_idx[1][i][j].cpu())
+                plt.scatter(
+                    [observation_pt[0][1]],
+                    [observation_pt[0][0]],
+                    color=cmap(observation_pt[1]),
+                    marker=".",
+                    s=150,
+                    edgecolors="black",
+                )
+            if save:
+                plt.savefig(os.path.join(sample_img_dir, "sample"))
+            figs.append(fig)
+            plt.close()
+
+        fig = plt.figure()
+        plt.plot(validation_x[i].squeeze().detach().cpu(), label="real_obs")
+        for j in range(len(y_1_idx[0][i])):
+            observation_pt = (y_1_idx[0][i][j].cpu(), y_1_idx[1][i][j].cpu())
+            plt.scatter(
+                [observation_pt[0][1]],
+                [observation_pt[0][0]],
+                color=cmap(observation_pt[1]),
+                marker=".",
+                s=150,
+                edgecolors="black",
+            )
+        if save:
+            plt.savefig(os.path.join(sample_img_dir, "sample"))
+        plt.close()
+        figs.append(fig)
+        if save:
+            os.makedirs(img_dir, exist_ok=True)
+            path_img = os.path.join(img_dir, f"test_best_metric_{i}.png")
+            plt.savefig(path_img)
+            paths.append(path_img)
+    return figs, paths
 
 
 def get_idx_val(y):
@@ -214,8 +285,18 @@ def get_idx_val_2D(y):
         return nonzero_idx, y[1, nonzero_idx[1], nonzero_idx[2]]
     # size [B, 2, 64, 64]
     if y.dim() == 4:
-        nonzero_idx = torch.where(y[:, 0, :, :])
-        return nonzero_idx[1], y[nonzero_idx[0], 1, nonzero_idx[1], nonzero_idx[2]]
+        idxs, values = [], []
+        for i in range(y.shape[0]):
+            nonzero_idx = torch.where(y[[i], 0, :, :])
+            idxs.append(
+                torch.cat(
+                    [nonzero_idx[1].unsqueeze(-1), nonzero_idx[2].unsqueeze(-1)], dim=-1
+                )
+            )
+            values.append(
+                y[nonzero_idx[0] + i, 1, nonzero_idx[1], nonzero_idx[2]],
+            )
+        return idxs, values
     # size [B, Seq_size, 2, 64, 64]
     if y.dim() == 5:
         idxs = torch.full((y.shape[0], y.shape[1], 2), -1, device=y.device)
@@ -230,3 +311,34 @@ def get_idx_val_2D(y):
             nonzero_idx[0], nonzero_idx[1], 1, nonzero_idx[2], nonzero_idx[3]
         ]
         return idxs, values
+
+
+def exp_distrib(lbda=0.2):
+    return lambda: int(np.random.exponential(scale=1 / lbda)) + 1
+
+
+def random_observation_ore_maps(
+    x: torch.Tensor,
+    distribution=exp_distrib(lbda=0.2),
+):  # x of shape [B, 1, h, w] or [B, 1, w]
+    if x.dim() == 4:
+        xy_pos = []
+        for i in range(n):
+            for j in range(m):
+                xy_pos.append((i, j))
+        observations = []
+        n, m = x.shape[2], x.shape[3]
+        n_obs = distribution()
+        for i in range(x.shape[0]):
+            new_obs = np.zeros((2, n, m))
+            temp_xy = rd.sample(xy_pos, n_obs)
+            for x, y in temp_xy:
+                new_obs[0, x, y] = 1
+                new_obs[1, x, y] = x[i, 0, x, y]
+            observations.append(new_obs)
+        return np.stack(observations)
+
+
+def keep_samples(measures: torch.Tensor, n: int):
+    inter = (measures.max() - measures.min()) / n
+    return [measures[measures < i * inter].max() for i in range(n)]

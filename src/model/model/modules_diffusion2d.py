@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class EMA:
+class EMA2d:
     def __init__(self, beta):
         super().__init__()
         self.beta = beta
@@ -48,12 +48,14 @@ class SelfAttention(nn.Module):
         )
 
     def forward(self, x):
-        x = x.view(-1, self.channels, self.size).swapaxes(1, 2)
+        x = x.view(-1, self.channels, self.size * self.size).swapaxes(1, 2)
         x_ln = self.ln(x)
         attention_value, _ = self.mha(x_ln, x_ln, x_ln)
         attention_value = attention_value + x
         attention_value = self.ff_self(attention_value) + attention_value
-        return attention_value.swapaxes(2, 1).view(-1, self.channels, self.size)
+        return attention_value.swapaxes(2, 1).view(
+            -1, self.channels, self.size, self.size
+        )
 
 
 class DoubleConv(nn.Module):
@@ -93,7 +95,7 @@ class Down(nn.Module):
 
     def forward(self, x, t):
         x = self.maxpool_conv(x)
-        emb = self.emb_layer(t)[:, :, None].repeat(1, 1, x.shape[-1])
+        emb = self.emb_layer(t)[:, :, None, None].repeat(1, 1, x.shape[-2], x.shape[-1])
         return x + emb
 
 
@@ -101,7 +103,7 @@ class Up(nn.Module):
     def __init__(self, in_channels, out_channels, emb_dim=256):
         super().__init__()
 
-        self.up = nn.Upsample(scale_factor=2, mode="linear", align_corners=True)
+        self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
         self.conv = nn.Sequential(
             DoubleConv(in_channels, in_channels, residual=True),
             DoubleConv(in_channels, out_channels, in_channels // 2),
@@ -116,11 +118,11 @@ class Up(nn.Module):
         x = self.up(x)
         x = torch.cat([skip_x, x], dim=1)
         x = self.conv(x)
-        emb = self.emb_layer(t)[:, :, None].repeat(1, 1, x.shape[-1])
+        emb = self.emb_layer(t)[:, :, None, None].repeat(1, 1, x.shape[-2], x.shape[-1])
         return x + emb
 
 
-class UNet_conditional(nn.Module):
+class UNet_conditional2d(nn.Module):
     def __init__(
         self,
         c_in=3,
@@ -133,22 +135,22 @@ class UNet_conditional(nn.Module):
         self.time_dim = time_dim
         self.inc = DoubleConv(c_in, 64)
         self.down1 = Down(64, 128)
-        self.sa1 = SelfAttention(128, 32)
+        self.sa1 = SelfAttention(128, 16)
         self.down2 = Down(128, 256)
-        self.sa2 = SelfAttention(256, 16)
+        self.sa2 = SelfAttention(256, 8)
         self.down3 = Down(256, 256)
-        self.sa3 = SelfAttention(256, 8)
+        self.sa3 = SelfAttention(256, 4)
 
         # self.bot1 = DoubleConv(256, 512)
         # self.bot2 = DoubleConv(512, 512)
         # self.bot3 = DoubleConv(512, 256)
 
         self.up1 = Up(512, 128)
-        self.sa4 = SelfAttention(128, 16)
+        self.sa4 = SelfAttention(128, 8)
         self.up2 = Up(256, 64)
-        self.sa5 = SelfAttention(64, 32)
+        self.sa5 = SelfAttention(64, 16)
         self.up3 = Up(128, 64)
-        self.sa6 = SelfAttention(64, 64)
+        self.sa6 = SelfAttention(64, 32)
         self.outc = nn.Conv2d(64, c_out, kernel_size=1)
 
         # self.label_emb = nn.Sequential(
@@ -169,6 +171,8 @@ class UNet_conditional(nn.Module):
         return pos_enc
 
     def forward(self, x, t, y):
+        x = x.float()
+        y = y.float()
         if self.encoding_layer:
             y = self.encoding_layer(y).cuda()
 

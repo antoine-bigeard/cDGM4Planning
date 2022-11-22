@@ -17,6 +17,8 @@ from src.model.model.DCGAN2d import *
 from src.model.model.CVAE import *
 from src.model.model.DDPM import *
 from src.model.model.modules_diffusion import *
+from src.model.model.DDPM2d import *
+from src.model.model.modules_diffusion2d import *
 from src.utils import read_yaml_config_file
 
 import argparse
@@ -29,7 +31,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/gan_ore_maps.yaml",
+        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/config_gan.yaml",
         required=False,
     )
     parser.add_argument(
@@ -92,7 +94,7 @@ if __name__ == "__main__":
         conf_lit_model["conf_vae"]["decoder_model"] = eval(
             conf_lit_model["conf_vae"]["decoder_model"]
         )
-    elif config["lit_model_type"] == ["LitDDPM", "LitDDPM2d"]:
+    elif config["lit_model_type"] in ["LitDDPM", "LitDDPM2d"]:
         conf_lit_model["ema"] = eval(conf_lit_model["ema"])
         conf_lit_model["diffusion"] = eval(conf_lit_model["diffusion"])
         conf_lit_model["ddpm"] = eval(conf_lit_model["ddpm"])
@@ -119,7 +121,7 @@ if __name__ == "__main__":
 
     trainer = pl.Trainer(
         logger=tsboard_logger,
-        # callbacks=[early_stop_callback],
+        callbacks=[checkpoint_callback],
         **conf_trainer,
         enable_progress_bar=True,
     )

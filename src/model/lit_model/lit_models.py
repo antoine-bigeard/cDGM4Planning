@@ -37,6 +37,7 @@ class LitDCGAN(pl.LightningModule):
         wasserstein_gp_loss=False,
         n_sample_for_metric: int = 100,
         sequential_cond: bool = False,
+        *kwargs,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -131,12 +132,12 @@ class LitDCGAN(pl.LightningModule):
         return self.generator(z.cuda(), y.cuda())
 
     def g_criterion(self, pred, target):
-        # return F.mse_loss(F.sigmoid(pred), target)
-        return F.binary_cross_entropy(pred, target)
+        return F.mse_loss(F.sigmoid(pred), target)
+        # return F.binary_cross_entropy(pred, target)
 
     def d_criterion(self, pred, target):
-        # return F.mse_loss(F.sigmoid(pred), target)
-        return F.binary_cross_entropy(pred, target)
+        return F.mse_loss(F.sigmoid(pred), target)
+        # return F.binary_cross_entropy(pred, target)
 
     def generator_step(self, y, x_shape):
         z = torch.randn(x_shape[0], self.latent_dim).to(self.device)
@@ -554,7 +555,7 @@ class LitDDPM(pl.LightningModule):
     def on_test_epoch_start(self) -> None:
         self.L2_measures = []
 
-    def on_test_epoch_end(self) -> None:
+    def on_test_end(self) -> None:
         img_dir = self.log_dir
         self.L2_measures = np.concatenate(self.L2_measures)
         fig_hist = plt.figure()

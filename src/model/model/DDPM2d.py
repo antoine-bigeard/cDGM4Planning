@@ -8,7 +8,7 @@ from torch import nn
 import torch.nn.functional as F
 
 
-class Diffusion:
+class Diffusion2d:
     def __init__(
         self,
         noise_steps=1000,
@@ -30,9 +30,9 @@ class Diffusion:
         return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
 
     def noise_images(self, x, t):
-        sqrt_alpha_hat = torch.sqrt(self.alpha_hat[t])[:, :, None, None].to(x.device)
+        sqrt_alpha_hat = torch.sqrt(self.alpha_hat[t])[:, None, None, None].to(x.device)
         sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t])[
-            :, :, None, None
+            :, None, None, None
         ].to(x.device)
         epsilon = torch.randn_like(x)
         return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * epsilon, epsilon
@@ -43,7 +43,7 @@ class Diffusion:
     def sample(self, model, n, labels, cfg_scale=3):
         model.eval()
         with torch.no_grad():
-            x = torch.randn((n, 1, self.surf_size)).cuda()
+            x = torch.randn((n, 1, self.surf_size, self.surf_size)).cuda()
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
                 t = (torch.ones(n) * i).long().cuda()
                 predicted_noise = model(x, t, labels)
@@ -52,9 +52,9 @@ class Diffusion:
                     predicted_noise = torch.lerp(
                         uncond_predicted_noise, predicted_noise, cfg_scale
                     )
-                alpha = self.alpha[t][:, :, None, None].cuda()
-                alpha_hat = self.alpha_hat[t][:, :, None, None].cuda()
-                beta = self.beta[t][:, :, None, None].cuda()
+                alpha = self.alpha[t][:, None, None, None].cuda()
+                alpha_hat = self.alpha_hat[t][:, None, None, None].cuda()
+                beta = self.beta[t][:, None, None, None].cuda()
                 if i > 1:
                     noise = torch.randn_like(x)
                 else:

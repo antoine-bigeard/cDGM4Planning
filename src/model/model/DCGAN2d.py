@@ -42,7 +42,7 @@ class LargeGeneratorInject2d(nn.Module):
         self.encoding_layer = encoding_layer
 
         self.latent = nn.Sequential(
-            nn.ConvTranspose2d(1, 128, 4, 2, 1),
+            nn.Conv2d(1, 128, 3, 1, 1),
             nn.LeakyReLU(0.2, inplace=False),
         )
 

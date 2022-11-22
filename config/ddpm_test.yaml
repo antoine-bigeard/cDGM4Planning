@@ -1,5 +1,6 @@
-name_experiment: 1000steps_ddpm
+name_experiment: 250steps_test_ddpm
 seed: 1234
+mode: test
 
 datamodule:
   # name: MyDataModule
@@ -9,8 +10,8 @@ datamodule:
   shuffle: False
   num_workers: 4
   pct_train: 0.8
-  pct_val: 0.2
-  pct_test: 0
+  pct_val: 0.199
+  pct_test: 0.001
   sequential_cond: False
 
 lit_model_type: LitDDPM
@@ -57,4 +58,4 @@ checkpoint_callback:
   save_last: True
   filename: best-checkpoint
 
-checkpoint_path: null
+checkpoint_path: logs_ddpm/250steps_ddpm/version_0/checkpoints/epoch=79-step=12560.ckpt

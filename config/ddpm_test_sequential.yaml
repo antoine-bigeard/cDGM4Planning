@@ -1,6 +1,6 @@
 name_experiment: seq_ddpm_test_metrics
 seed: 1234
-mode: test
+mode: fit
 
 datamodule:
   # name: MyDataModule
@@ -34,9 +34,9 @@ lit_model:
   b1: 0.5
   b2: 0.999
   latent_dim: 20
-  validation_x_shape: [5, 1, 64]
+  validation_x_shape: [1, 1, 64]
   use_rd_y: False
-  batch_size: 1024
+  batch_size: 512
   cfg_scale: 0
   sequential_cond: True
   encoding_layer: ConditionEncoding

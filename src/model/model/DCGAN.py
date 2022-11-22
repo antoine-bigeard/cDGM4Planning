@@ -34,6 +34,7 @@ class LargeGeneratorInject(nn.Module):
             (False, 2, 1),
         ],  # (True to inject y, number of channels to use for convolution before injection (if 0 no convolution used))
         encoding_layer=None,
+        *kwargs,
     ):
         super().__init__()
         self.latent_dim = latent_dim
@@ -94,6 +95,7 @@ class LargerDiscriminator(nn.Module):
         spectral_norm=[False, False, False, False, False, False, False, False],
         sequential_cond: bool = False,
         encoding_layer=None,
+        *kwargs,
     ):
         super().__init__()
         self.layers = layers

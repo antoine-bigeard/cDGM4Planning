@@ -17,6 +17,7 @@ from src.model.model.DDPM import *
 from src.utils import *
 
 import copy
+import json
 
 
 class LitDCGAN2d(pl.LightningModule):
@@ -86,27 +87,6 @@ class LitDCGAN2d(pl.LightningModule):
             self.n_sample_for_metric, 1, self.latent_dim, self.latent_dim
         ).to(self.device)
 
-        if not sequential_cond:
-            rd_obs = random_observation(
-                self.validation_x_shape, return_1_idx=True, random=False
-            )
-            self.validation_y, self.y_1_idxs = rd_obs[0].to(self.device), rd_obs[1]
-
-        if self.sequential_cond:
-            rd_obs = [
-                random_observation(
-                    self.validation_x_shape, return_1_idx=True, random=True
-                )
-                for i in range(2)
-            ]
-            self.validation_y = torch.cat(
-                [obs[0].unsqueeze(1) for obs in rd_obs], dim=1
-            )
-            self.y_1_idxs = [
-                [rd_obs[i][1][j] for i in range(len(rd_obs))]
-                for j in range(len(rd_obs[0][1]))
-            ]
-
         self.current_training_step = 0
         self.current_validation_step = 0
 
@@ -135,18 +115,17 @@ class LitDCGAN2d(pl.LightningModule):
         return self.generator(z.cuda(), y.cuda())
 
     def g_criterion(self, pred, target):
-        # return F.mse_loss(F.sigmoid(pred), target)
-        return F.binary_cross_entropy(pred, target)
+        return F.mse_loss(F.sigmoid(pred), target)
+        # return F.binary_cross_entropy(pred, target)
 
     def d_criterion(self, pred, target):
-        # return F.mse_loss(F.sigmoid(pred), target)
-        return F.binary_cross_entropy(pred, target)
+        return F.mse_loss(F.sigmoid(pred), target)
+        # return F.binary_cross_entropy(pred, target)
 
     def generator_step(self, y, x_shape):
         z = torch.randn(x_shape[0], 1, self.latent_dim, self.latent_dim).to(self.device)
         if self.use_rd_y:
-            y, idxs_1 = random_observation(x_shape, return_1_idx=True)
-            y = y.to(self.device)
+            y = random_observation_ore_maps(x).to(self.device)
 
         generated_surface = self(z, y)
 
@@ -170,7 +149,8 @@ class LitDCGAN2d(pl.LightningModule):
         # Loss for the generated samples
         z = torch.randn(x.size(0), 1, self.latent_dim, self.latent_dim).to(self.device)
         if self.use_rd_y:
-            y = random_observation(x.shape).to(self.device)
+            y = random_observation_ore_maps(x).to(self.device)
+
         generated_surfaces = self(z, y)
         d_output_fake = torch.squeeze(self.discriminator(generated_surfaces, y.cuda()))
 
@@ -312,30 +292,33 @@ class LitDCGAN2d(pl.LightningModule):
                 f"generated_image_{i}", fig, self.current_epoch
             )
 
-    def on_validation_epoch_end(self):
+    # def on_validation_epoch_end(self):
+    #     img_dir = os.path.join(self.log_dir, f"epoch_{self.current_epoch}")
+    #     os.makedirs(img_dir, exist_ok=True)
+    #     # log sampled images
+    #     sample_surfaces = []
+    #     for s in range(self.validation_z.size(0)):
+    #         sample_surfaces.append(
+    #             self(
+    #                 self.validation_z,
+    #                 torch.cat(
+    #                     [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
+    #                     0,
+    #                 ),
+    #             )
+    #         )
 
-        # log sampled images
-        sample_surfaces = []
-        for s in range(self.validation_z.size(0)):
-            sample_surfaces.append(
-                self(
-                    self.validation_z,
-                    torch.cat(
-                        [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
-                        0,
-                    ),
-                )
-            )
-
-        figs = create_figs_2D(
-            sample_surfaces,
-            self.y_1_idxs,
-            sequential_cond=self.sequential_cond,
-        )
-        for i, fig in enumerate(figs):
-            self.logger.experiment.add_figure(
-                f"generated_image_{i}", fig, self.current_epoch
-            )
+    #     figs = create_figs_2D(
+    #         sample_surfaces,
+    #         self.y_1_idxs,
+    #         img_dir=img_dir,
+    #         save=True,
+    #         sequential_cond=self.sequential_cond,
+    #     )
+    #     for i, fig in enumerate(figs):
+    #         self.logger.experiment.add_figure(
+    #             f"generated_image_{i}", fig, self.current_epoch
+    #         )
 
     def metrics(self, x, y):
         best_dist_y = {}
@@ -386,7 +369,7 @@ class LitDCGAN2d(pl.LightningModule):
         self.log_dict(metrics)
 
 
-class LitDDPM(pl.LightningModule):
+class LitDDPM2d(pl.LightningModule):
     def __init__(
         self,
         ddpm=UNet_conditional,
@@ -452,10 +435,6 @@ class LitDDPM(pl.LightningModule):
         self.validation_z = torch.randn(
             self.validation_x_shape[0], self.latent_dim, device=self.device
         )
-        rd_obs = random_observation(
-            self.validation_x_shape, return_1_idx=True, random=False
-        )
-        self.validation_y, self.y_1_idxs = rd_obs[0].to(self.device), rd_obs[1]
 
         self.current_training_step = 0
         self.current_validation_step = 0
@@ -481,6 +460,9 @@ class LitDDPM(pl.LightningModule):
         )
         self.y_1_idxs = get_idx_val_2D(self.validation_y)
 
+    def on_test_start(self):
+        self.dict_metrics_paths = {}
+
     def forward(self, z, y):
         return self.vae(z.cuda(), y.cuda())
 
@@ -489,10 +471,8 @@ class LitDDPM(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
-        x_shape = (y.size(0), *self.validation_x_shape[1:])
         if self.use_rd_y:
-            y, idxs_1 = random_observation(x_shape, return_1_idx=True)
-            y = y.to(self.device)
+            y = random_observation_ore_maps(x).to(self.device)
 
         t = self.diffusion.sample_timesteps(x.shape[0]).to(self.device)
         x_t, noise = self.diffusion.noise_images(x, t)
@@ -507,10 +487,8 @@ class LitDDPM(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        x_shape = (y.size(0), *self.validation_x_shape[1:])
         if self.use_rd_y:
-            y, idxs_1 = random_observation(x_shape, return_1_idx=True)
-            y = y.to(self.device)
+            y = random_observation_ore_maps(x).to(self.device)
 
         t = self.diffusion.sample_timesteps(x.shape[0]).to(self.device)
         x_t, noise = self.diffusion.noise_images(x, t)
@@ -558,7 +536,7 @@ class LitDDPM(pl.LightningModule):
     def on_test_epoch_start(self) -> None:
         self.L2_measures = []
 
-    def on_test_epoch_end(self) -> None:
+    def on_test_end(self) -> None:
         img_dir = self.log_dir
         self.L2_measures = np.concatenate(self.L2_measures)
         fig_hist = plt.figure()
@@ -581,6 +559,16 @@ class LitDDPM(pl.LightningModule):
             label="histogram",
         )
         plt.savefig(os.path.join(img_dir, "histogram"))
+        vals_to_keep = keep_samples(self.L2_measures, n=4)
+        new_dict_metrics = {}
+        for k, v in self.dict_metrics_paths.items():
+            if v not in vals_to_keep:
+                os.remove(k)
+            else:
+                new_dict_metrics[k] = v
+        path_dict = os.path.join(img_dir, "metrics_img_path")
+        with open(path_dict, "w") as f:
+            json.dump(new_dict_metrics, f)
         self.logger.experiment.add_figure(f"histogram", fig_hist)
         self.logger.experiment.add_figure(f"cumulative_distribution", fig_cum)
 
@@ -614,27 +602,6 @@ class LitDDPM(pl.LightningModule):
                 f"generated_image_{i}", fig, self.current_epoch
             )
 
-    # def on_validation_epoch_end(self):
-
-    #     # log sampled images
-    #     sample_surfaces = []
-    #     for s in range(self.validation_z.size(0)):
-    #         sample_surfaces.append(
-    #             self.vae.inference(
-    #                 self.validation_z,
-    #                 torch.cat(
-    #                     [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
-    #                     0,
-    #                 ),
-    #             )
-    #         )
-
-    #     figs = create_figs(sample_surfaces, self.y_1_idxs, self.validation_y)
-    #     for i, fig in enumerate(figs):
-    #         self.logger.experiment.add_figure(
-    #             f"generated_image_{i}", fig, self.current_epoch
-    #         )
-
     def test_step(self, batch, batch_idx):
         img_dir = os.path.join(self.log_dir, f"test_step_{batch_idx}")
         os.makedirs(img_dir, exist_ok=True)
@@ -649,8 +616,8 @@ class LitDDPM(pl.LightningModule):
         metrics, best_L2, best_cond, std, best_L2_measures = measure_metrics(
             inference_model, x, y, self.n_sample_for_metric
         )
-        figs = create_figs_best_metrics(
-            {"best_L2": best_L2, "std": std},
+        figs, paths = create_figs_best_metrics(
+            {"best_L2": best_L2},
             y_1_idxs,
             x,
             img_dir,
@@ -659,197 +626,6 @@ class LitDDPM(pl.LightningModule):
         )
         for i, fig in enumerate(figs):
             self.logger.experiment.add_figure(f"test_step_{i}", fig, batch_idx)
+            self.dict_metrics_paths[paths[i]] = best_L2_measures[i]
         self.log_dict(metrics)
         self.L2_measures.append(best_L2_measures)
-
-
-class LitVAE(pl.LightningModule):
-    def __init__(
-        self,
-        vae: nn.Module = LargeGeneratorInject,
-        conf_vae: dict = {"latent_dim": 100},
-        lr: float = 0.0002,
-        b1: float = 0.5,
-        b2: float = 0.999,
-        validation_x_shape: np.ndarray = [5, 51, 1],
-        log_dir: str = "",
-        use_rd_y: bool = True,
-        batch_size=512,
-        n_sample_for_metric: int = 100,
-    ):
-        super().__init__()
-        self.save_hyperparameters()
-
-        # instantiate models
-        self.conf_vae = conf_vae
-        self.vae = vae(**self.conf_vae)
-
-        self.latent_dim = self.conf_vae["latent_dim"]
-        self.lr = lr
-        self.b1 = b1
-        self.b2 = b2
-        self.validation_x_shape = validation_x_shape
-        self.log_dir = log_dir
-        self.use_rd_y = use_rd_y
-        self.batch_size = batch_size
-        self.n_sample_for_metric = n_sample_for_metric
-
-        self.validation_z = torch.randn(
-            self.validation_x_shape[0], self.vae.decoder.latent_dim, device=self.device
-        )
-        self.val_z_best_metrics = torch.randn(
-            self.n_sample_for_metric, self.vae.decoder.latent_dim
-        ).to(self.device)
-        rd_obs = random_observation(
-            self.validation_x_shape, return_1_idx=True, random=False
-        )
-        self.validation_y, self.y_1_idxs = rd_obs[0].to(self.device), rd_obs[1]
-
-        self.current_training_step = 0
-        self.current_validation_step = 0
-
-    def forward(self, x, y):
-        return self.vae(x.cuda(), y.cuda())
-
-    def loss_fn(self, recon_x, x, mean, var, y):
-        # BCE = F.binary_cross_entropy(recon_x.squeeze(), x.squeeze())
-        # GAP_Y = dist_to_y_metric(recon_x, (x, y)).sum()
-        BCE = F.mse_loss(recon_x, x)
-        # BCE = L2_metric(recon_x, x, p=2).cuda().mean()
-
-        KLD = torch.mean(0.5 * torch.sum(var.exp() + mean.pow(2) - 1 - var, dim=1))
-        return 100 * BCE, 1 * KLD
-        # return (BCE + KLD + GAP_Y) / x.size(0)
-
-    # def loss_fn(self, recon_x, x):
-    #     return F.mse_loss(recon_x, x)
-
-    def training_step(self, batch, batch_idx):
-        x, y = batch
-        x_shape = (y.size(0), *self.validation_x_shape[1:])
-        if self.use_rd_y:
-            y, idxs_1 = random_observation(x_shape, return_1_idx=True)
-            y = y.to(self.device)
-
-        recon_x, mean, var, z = self(x, y)
-
-        recon_loss, kld_loss = self.loss_fn(recon_x, x, mean, var, y)
-
-        self.log("train/recon_loss", recon_loss, prog_bar=True)
-        self.log("train/kld", kld_loss, prog_bar=True)
-        self.current_training_step += 1
-
-        return recon_loss + kld_loss
-
-    def validation_step(self, batch, batch_idx):
-        x, y = batch
-        x_shape = (y.size(0), *self.validation_x_shape[1:])
-        if self.use_rd_y:
-            y, idxs_1 = random_observation(x_shape, return_1_idx=True)
-            y = y.to(self.device)
-
-        recon_x, mean, var, z = self(x, y)
-
-        recon_loss, kld_loss = self.loss_fn(recon_x, x, mean, var, y)
-
-        self.log("val/recon_loss", recon_loss, prog_bar=True)
-        self.log("val/kld", kld_loss, prog_bar=True)
-
-        if self.current_validation_step % 10 == 0:
-            best_y, best_L2, best_sample_y, best_sample_L2 = self.metrics(
-                x[:10], self.validation_y
-            )
-            for k in best_y.keys():
-                self.log(f"val/dist_y/{k}", best_y[k])
-                self.log(f"val/L2/{k}", best_L2[k])
-            if self.current_validation_step == 0:
-                img_dir = os.path.join(self.log_dir, f"val_epoch_{self.current_epoch}")
-                figs = create_figs_best_metrics(
-                    [(best_sample_L2, "best_L2"), (best_sample_y, "best_y")],
-                    self.y_1_idxs,
-                    x[0],
-                    img_dir,
-                    save=True,
-                )
-                for i, fig in enumerate(figs):
-                    self.logger.experiment.add_figure(
-                        f"best_metrics_{i}", fig, self.current_epoch
-                    )
-
-        self.current_validation_step += 1
-
-        return recon_loss + kld_loss
-
-    def configure_optimizers(self):
-        opt = torch.optim.Adam(
-            self.vae.parameters(), lr=self.lr, betas=(self.b1, self.b2)
-        )
-        return opt
-
-    def on_validation_epoch_start(self) -> None:
-        self.current_validation_step = 0
-        return super().on_validation_epoch_start()
-
-    def on_train_epoch_start(self) -> None:
-        img_dir = os.path.join(self.log_dir, f"epoch_{self.current_epoch}")
-        os.makedirs(img_dir, exist_ok=True)
-        # log sampled images
-        sample_surfaces = []
-        for s in range(self.validation_z.size(0)):
-            sample_surfaces.append(
-                self.vae.decoder(
-                    self.validation_z,
-                    torch.cat(
-                        [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
-                        0,
-                    ),
-                )
-            )
-
-        figs = create_figs(sample_surfaces, self.y_1_idxs, img_dir, save=True)
-        for i, fig in enumerate(figs):
-            self.logger.experiment.add_figure(
-                f"generated_image_{i}", fig, self.current_epoch
-            )
-
-    def on_validation_epoch_end(self):
-
-        # log sampled images
-        sample_surfaces = []
-        for s in range(self.validation_z.size(0)):
-            sample_surfaces.append(
-                self.vae.inference(
-                    self.validation_z,
-                    torch.cat(
-                        [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
-                        0,
-                    ),
-                )
-            )
-
-        figs = create_figs(sample_surfaces, self.y_1_idxs)
-        for i, fig in enumerate(figs):
-            self.logger.experiment.add_figure(
-                f"generated_image_{i}", fig, self.current_epoch
-            )
-
-    def metrics(self, x, y):
-        best_dist_y = {}
-        best_L2 = {}
-        best_samp_y = {}
-        best_samp_L2 = {}
-        for label in y:
-            new_vals_metric_y = []
-            new_vals_metric_L2 = []
-            for i, surf in enumerate(x):
-                idx, new_y, new_L2, new_samp_y, new_samp_L2 = compute_best_pred(
-                    self.vae.inference, self.val_z_best_metrics, surf, label
-                )
-                new_vals_metric_y.append(new_y)
-                new_vals_metric_L2.append(new_L2)
-                if i == 0:
-                    best_samp_y[idx] = new_samp_y
-                    best_samp_L2[idx] = new_samp_L2
-            best_dist_y[idx] = sum(new_vals_metric_y) / len(x)
-            best_L2[idx] = sum(new_vals_metric_L2) / len(x)
-        return best_dist_y, best_L2, best_samp_y, best_samp_L2

@@ -1,5 +1,6 @@
-name_experiment: inject_6_larger
+name_experiment: test_metrics_gan
 seed: 1234
+mode: test
 
 datamodule:
   # name: MyDataModule
@@ -9,8 +10,8 @@ datamodule:
   shuffle: False
   num_workers: 4
   pct_train: 0.8
-  pct_val: 0.2
-  pct_test: 0.0
+  pct_val: 0.199
+  pct_test: 0.001
 
 lit_model_type: LitDCGAN
 lit_model:
@@ -87,4 +88,4 @@ checkpoint_callback:
   save_last: True
   filename: best-checkpoint
 
-checkpoint_path: null
+checkpoint_path: logs_gan/full_inject_2.4M/checkpoints/epoch=27-step=8792.ckpt
