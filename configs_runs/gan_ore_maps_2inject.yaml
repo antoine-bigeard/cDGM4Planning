@@ -1,6 +1,6 @@
-name_experiment: ore_maps_gan
+name_experiment: ore_maps_gan_2inject
 seed: 1234
-mode: test
+mode: fit
 
 datamodule:
   # name: MyDataModule

@@ -49,16 +49,23 @@ def random_observation(shape, return_1_idx=False, random=True):
     return y
 
 
-def calculate_gradient_penalty(D, real_samples, fake_samples, labels, device):
+def calculate_gradient_penalty(
+    discriminator, real_samples, fake_samples, labels, device
+):
     torch.set_grad_enabled(True)
     # Random weight term for interpolation between real and fake samples
-    alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1))).to(device)
+    if real_samples.dim() == 3:
+        alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1))).to(device)
+    elif real_samples.dim() == 4:
+        alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1, 1))).to(
+            device
+        )
     labels = torch.Tensor(labels).to(device)
     # Get random interpolation between real and fake samples
     interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(
         True
     )
-    d_interpolates = D(interpolates, labels)
+    d_interpolates = discriminator(interpolates, labels)
     fake = torch.Tensor(real_samples.shape[0], 1).fill_(1.0).to(device)
     fake.requires_grad = False
     # Get gradient w.r.t. interpolates
@@ -209,13 +216,13 @@ def create_figs_best_metrics_2D(
 ):
     paths = []
     figs = []
-    for i in range(y_1_idx[0].shape[0]):
-        sample_img_dir = os.path.join(img_dir, f"test_{i}")
+    for i in range(len(y_1_idx[0])):
+        sample_img_dir = os.path.join(img_dir, f"test_best_metric_{i}")
         os.makedirs(sample_img_dir, exist_ok=True)
         cmap = cm.viridis
         for (name, sample) in best_samples.items():
             fig = plt.figure()
-            plt.imshow(sample.squeeze().detach().cpu(), cmap=cmap)
+            plt.imshow(sample[i].squeeze().detach().cpu(), cmap=cmap)
             for j in range(len(y_1_idx[0][i])):
                 observation_pt = (y_1_idx[0][i][j].cpu(), y_1_idx[1][i][j].cpu())
                 plt.scatter(
@@ -228,11 +235,12 @@ def create_figs_best_metrics_2D(
                 )
             if save:
                 plt.savefig(os.path.join(sample_img_dir, "sample"))
+                paths.append(os.path.join(sample_img_dir, "sample.png"))
             figs.append(fig)
             plt.close()
 
         fig = plt.figure()
-        plt.plot(validation_x[i].squeeze().detach().cpu(), label="real_obs")
+        plt.imshow(validation_x[i].squeeze().detach().cpu(), label="real_obs")
         for j in range(len(y_1_idx[0][i])):
             observation_pt = (y_1_idx[0][i][j].cpu(), y_1_idx[1][i][j].cpu())
             plt.scatter(
@@ -244,14 +252,9 @@ def create_figs_best_metrics_2D(
                 edgecolors="black",
             )
         if save:
-            plt.savefig(os.path.join(sample_img_dir, "sample"))
+            plt.savefig(os.path.join(sample_img_dir, "ground_truth"))
         plt.close()
         figs.append(fig)
-        if save:
-            os.makedirs(img_dir, exist_ok=True)
-            path_img = os.path.join(img_dir, f"test_best_metric_{i}.png")
-            plt.savefig(path_img)
-            paths.append(path_img)
     return figs, paths
 
 
@@ -322,6 +325,7 @@ def random_observation_ore_maps(
     distribution=exp_distrib(lbda=0.2),
 ):  # x of shape [B, 1, h, w] or [B, 1, w]
     if x.dim() == 4:
+        n, m = x.shape[2], x.shape[3]
         xy_pos = []
         for i in range(n):
             for j in range(m):
@@ -332,13 +336,14 @@ def random_observation_ore_maps(
         for i in range(x.shape[0]):
             new_obs = np.zeros((2, n, m))
             temp_xy = rd.sample(xy_pos, n_obs)
-            for x, y in temp_xy:
-                new_obs[0, x, y] = 1
-                new_obs[1, x, y] = x[i, 0, x, y]
+            for k, l in temp_xy:
+                new_obs[0, k, l] = 1
+                new_obs[1, k, l] = x[i, 0, k, l]
             observations.append(new_obs)
-        return np.stack(observations)
+        return torch.Tensor(np.stack(observations))
 
 
 def keep_samples(measures: torch.Tensor, n: int):
-    inter = (measures.max() - measures.min()) / n
-    return [measures[measures < i * inter].max() for i in range(n)]
+    minn = measures.min()
+    inter = (measures.max() - minn) / n
+    return [measures[measures <= i * inter + minn].max() for i in range(n)]

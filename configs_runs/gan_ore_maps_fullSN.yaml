@@ -1,6 +1,6 @@
-name_experiment: ore_maps_gan
+name_experiment: ore_maps_gan_fullSN
 seed: 1234
-mode: test
+mode: fit
 
 datamodule:
   # name: MyDataModule
@@ -57,20 +57,20 @@ lit_model:
       {L: [2048, 1]},
     ]
     spectral_norm: [
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
     ]
   g_lr: 0.0002
   d_lr: 0.0002

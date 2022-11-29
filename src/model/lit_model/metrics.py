@@ -2,7 +2,8 @@ from torchmetrics import Metric
 import torch
 import torch.nn as nn
 from torchmetrics.functional import pearson_corrcoef
-from src.utils import get_idx_val
+from src.utils import get_idx_val, get_idx_val_2D
+from time import time
 
 
 def L2_metric(preds, target, p):
@@ -92,7 +93,23 @@ class BestL2(Metric):
 
 
 def compute_L2(preds, targets, p=2):
-    return torch.cdist(preds, targets, p=p).cpu().float()
+    # return (preds-targets).square().sum(dim=(1,2,3)).sqrt()
+    if preds.dim() == 3:
+        return torch.cdist(preds, targets, p=p).cpu().float()
+    elif preds.dim() == 4:
+        return (
+            torch.cdist(
+                preds.view(
+                    preds.shape[0], preds.shape[1], preds.shape[2] * preds.shape[3]
+                ),
+                targets.view(
+                    preds.shape[0], preds.shape[1], preds.shape[2] * preds.shape[3]
+                ),
+                p=p,
+            )
+            .cpu()
+            .float()
+        )
 
 
 def compute_cond_dist(preds, targets, y_1_idxs):
@@ -109,12 +126,26 @@ def compute_cond_dist(preds, targets, y_1_idxs):
 
 
 def compute_metrics(samples, real_x, y):
+    initial_samples_shape = samples.shape
+    if samples.dim() == 4:
+        samples = samples.view(
+            samples.shape[0], samples.shape[1], samples.shape[2] * samples.shape[3]
+        )
+        real_x = real_x.view(real_x.shape[0], real_x.shape[1] * real_x.shape[2])
+        y = y.view(y.shape[0], y.shape[1] * y.shape[2])
     metrics = {}
     y_1_idxs = get_idx_val(y.unsqueeze(0))
     batched_real = torch.cat([real_x.unsqueeze(0) for i in range(samples.shape[0])])
     # best L2
     min_L2 = compute_L2(samples, batched_real).min(dim=0)
-    metrics["best_L2"] = (min_L2.values, samples[min_L2.indices.squeeze()])
+    metrics["best_L2"] = (
+        min_L2.values.squeeze(),
+        samples[min_L2.indices.squeeze()].view(
+            initial_samples_shape[1], initial_samples_shape[2], initial_samples_shape[3]
+        )
+        if len(initial_samples_shape) == 4
+        else samples[min_cond_dist.indices.squeeze()],
+    )
 
     # best cond
     cond_dists = compute_cond_dist(
@@ -127,14 +158,18 @@ def compute_metrics(samples, real_x, y):
     )
     min_cond_dist = cond_dists.min(dim=0)
     metrics["best_cond_dist"] = (
-        min_cond_dist.values,
-        samples[min_cond_dist.indices.squeeze()],
+        min_cond_dist.values.squeeze(),
+        samples[min_cond_dist.indices.squeeze()].view(
+            initial_samples_shape[1], initial_samples_shape[2], initial_samples_shape[3]
+        )
+        if len(initial_samples_shape) == 4
+        else samples[min_cond_dist.indices.squeeze()],
     )
     metrics["mean_cond_dist"] = cond_dists.mean(dim=0)
 
     # variance
     std_dim0 = torch.std(samples, dim=0)
-    metrics["std"] = (std_dim0.mean().cpu().float(), std_dim0)
+    metrics["std"] = (std_dim0.mean().squeeze().cpu().float(), std_dim0)
 
     return metrics
 
@@ -221,14 +256,19 @@ def measure_metrics(inference_model, x, y, n_sample_for_metric):
     best_L2_measures = []
     best_L2_sample = []
     best_cond_dist_sample = []
+    best_cond_dist_measures = []
     std = []
+    samples_per_sec = []
     for i, (real, label) in enumerate(zip(x, y)):
+        start = time()
         samples = inference_model(
             labels=torch.cat(
                 [label.unsqueeze(0)] * n_sample_for_metric,
                 dim=0,
             ).cuda()
         )
+        end = time()
+        samples_per_sec.append(n_sample_for_metric / (end - start))
         new_metrics = compute_metrics(samples, real_x=real, y=label)
         for k, v in new_metrics.items():
             if k in ["best_L2", "best_cond_dist", "std"]:
@@ -238,6 +278,9 @@ def measure_metrics(inference_model, x, y, n_sample_for_metric):
         best_L2_measures.append(new_metrics["best_L2"][0].squeeze().detach().cpu())
         best_L2_sample.append(new_metrics["best_L2"][1])
         best_cond_dist_sample.append(new_metrics["best_cond_dist"][1])
+        best_cond_dist_measures.append(
+            new_metrics["best_cond_dist"][0].squeeze().detach().cpu()
+        )
         std.append(new_metrics["std"][1])
     metrics = {k: v / x.shape[0] for k, v in metrics.items()}
     return (
@@ -246,6 +289,8 @@ def measure_metrics(inference_model, x, y, n_sample_for_metric):
         torch.stack(best_cond_dist_sample),
         torch.stack(std),
         best_L2_measures,
+        best_cond_dist_measures,
+        samples_per_sec,
     )
 
 

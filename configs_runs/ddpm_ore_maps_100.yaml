@@ -1,6 +1,6 @@
-name_experiment: ore_maps_ddpm
+name_experiment: ore_maps_ddpm_100
 seed: 1234
-mode: test
+mode: fit
 
 datamodule:
   # name: MyDataModule
@@ -11,7 +11,7 @@ datamodule:
   num_workers: 4
   pct_train: 0.8
   pct_val: 0.18
-  pct_test: 0.00004
+  pct_test: 0.02
   sequential_cond: False
   two_dimensional: True
 
@@ -19,7 +19,7 @@ lit_model_type: LitDDPM2d
 lit_model:
   diffusion: Diffusion2d
   conf_diffusion:
-    noise_steps: 250
+    noise_steps: 100
     beta_start: 0.0001
     beta_end: 0.02
     surf_size: 32
@@ -44,7 +44,7 @@ lit_model:
 trainer:
   auto_lr_find: False
   min_epochs: 1
-  max_epochs: 80
+  max_epochs: 50
   fast_dev_run: False
   accelerator: gpu
   devices: [0]

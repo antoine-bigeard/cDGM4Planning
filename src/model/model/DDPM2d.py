@@ -5,6 +5,7 @@ import math
 
 import torch
 from torch import nn
+from time import time
 import torch.nn.functional as F
 
 
@@ -44,8 +45,9 @@ class Diffusion2d:
         model.eval()
         with torch.no_grad():
             x = torch.randn((n, 1, self.surf_size, self.surf_size)).cuda()
+            t1 = (torch.ones(n)).cuda().long()
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
-                t = (torch.ones(n) * i).long().cuda()
+                t = t1 * i
                 predicted_noise = model(x, t, labels)
                 if cfg_scale > 0:
                     uncond_predicted_noise = model(x, t, None)

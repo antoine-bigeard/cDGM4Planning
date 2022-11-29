@@ -1,12 +1,12 @@
-name_experiment: ore_maps_gan
+name_experiment: ore_maps_gan_2inject_wgp
 seed: 1234
-mode: test
+mode: fit
 
 datamodule:
   # name: MyDataModule
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  batch_size: 150
+  batch_size: 75
   shuffle: False
   num_workers: 4
   pct_train: 0.8
@@ -78,8 +78,8 @@ lit_model:
   b2: 0.999
   validation_x_shape: [10, 1, 32, 32]
   use_rd_y: True
-  batch_size: 150
-  wasserstein_gp_loss: False
+  batch_size: 75
+  wasserstein_gp_loss: True
   n_sample_for_metric: 100
 
 trainer:

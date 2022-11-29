@@ -1,6 +1,6 @@
-name_experiment: ore_maps_gan
+name_experiment: ore_maps_gan_fullinject
 seed: 1234
-mode: test
+mode: fit
 
 datamodule:
   # name: MyDataModule
@@ -32,12 +32,12 @@ lit_model:
     ]
     injections: [
       [True, 0, 1],
-      [False, 2, 0.5],
-      [False, 2, 1],
-      [False, 2, 2],
+      [True, 2, 0.5],
+      [True, 2, 1],
+      [True, 2, 2],
       [True, 0, 1],
-      [False, 2, 1],
-      [False, 2, 1],
+      [True, 2, 1],
+      [True, 2, 1],
     ]
   conf_discriminator:
     layers: [
@@ -89,7 +89,7 @@ trainer:
   fast_dev_run: False
   log_every_n_steps: 10
   accelerator: gpu
-  devices: [1]
+  devices: [3]
   # flush_logs_every_n_steps: 10
   # learning_rate: 0.0001
 

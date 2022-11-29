@@ -1,6 +1,4 @@
 import sys
-from pympler.asizeof import asizeof
-from torch import manual_seed
 
 sys.path.insert(0, "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS")
 
@@ -25,26 +23,11 @@ import argparse
 import os
 import yaml
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+from multiprocessing import Process
+import multiprocessing
 
-    parser.add_argument(
-        "--path_config",
-        help="config path that contains config for data, models, training.",
-        default="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/config_gan.yaml",
-        required=False,
-    )
-    parser.add_argument(
-        "--mode",
-        help="mode fit, test or predict",
-        default="fit",
-        required=False,
-    )
 
-    args = parser.parse_args()
-
-    path_config = args.path_config
-    mode = args.mode
+def main(path_config):
 
     config = read_yaml_config_file(path_config)
     mode = config["mode"]
@@ -137,3 +120,34 @@ if __name__ == "__main__":
 
     else:
         raise ValueError("Please give a valid mode: fit, test or predict")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--path_config",
+        help="config path that contains config for data, models, training.",
+        default=[
+            # "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/ddpm_ore_maps.yaml",
+            # "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/gan_ore_maps.yaml",
+            "configs_runs/gan_ore_maps_fullinject.yaml",
+            # "configs_runs/ddpm_ore_maps_1000.yaml"
+        ],
+        required=False,
+    )
+    parser.add_argument(
+        "--parallel",
+        help="mode fit, test or predict",
+        default=0,
+        required=False,
+    )
+
+    args = parser.parse_args()
+
+    if args.parallel:
+        pool = multiprocessing.Pool()
+        outs = pool.map(main, args.path_config)
+    else:
+        for path in args.path_config:
+            main(path)
