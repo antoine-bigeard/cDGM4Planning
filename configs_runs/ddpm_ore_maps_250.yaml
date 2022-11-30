@@ -1,6 +1,6 @@
-name_experiment: ore_maps_ddpm_500
+name_experiment: ore_maps_ddpm_250
 seed: 1234
-mode: test
+mode: fit
 
 datamodule:
   # name: MyDataModule
@@ -19,7 +19,7 @@ lit_model_type: LitDDPM2d
 lit_model:
   diffusion: Diffusion2d
   conf_diffusion:
-    noise_steps: 500
+    noise_steps: 250
     beta_start: 0.0001
     beta_end: 0.02
     surf_size: 32
@@ -60,4 +60,4 @@ checkpoint_callback:
   save_last: True
   filename: best-checkpoint
 
-checkpoint_path: logs/ore_maps_ddpm_500/version_0/checkpoints/best-checkpoint.ckpt
+checkpoint_path: #logs/ore_maps_ddpm_250/version_0/checkpoints/best-checkpoint.ckpt

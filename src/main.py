@@ -8,21 +8,13 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 
 from src.data.datamodule.datamodule import MyDataModule
-from src.model.lit_model.lit_models import *
-from src.model.model.DCGAN import *
-from src.model.lit_model.lit_models2d import *
-from src.model.model.DCGAN2d import *
-from src.model.model.CVAE import *
-from src.model.model.DDPM import *
-from src.model.model.modules_diffusion import *
-from src.model.model.DDPM2d import *
-from src.model.model.modules_diffusion2d import *
 from src.utils import read_yaml_config_file
+from src.main_utils import instantiate_lit_model
 
 import argparse
 import os
 import yaml
-
+import torch
 from multiprocessing import Process
 import multiprocessing
 
@@ -35,7 +27,6 @@ def main(path_config):
     conf_datamodule = config.get("datamodule")
     conf_lit_model = config.get("lit_model")
     conf_trainer = config.get("trainer")
-    name_exp = config.get("name_experiment")
     conf_ts_board = config.get("tensorboard_logs")
     conf_checkpoint_callback = config.get("checkpoint_callback")
 
@@ -64,24 +55,26 @@ def main(path_config):
     datamodule = MyDataModule(**conf_datamodule)
 
     # configure lit model
-    if "encoding_layer" in conf_lit_model:
-        conf_lit_model["encoding_layer"] = eval(conf_lit_model["encoding_layer"])
-    if config["lit_model_type"] in ["LitDCGAN", "LitDCGAN2d"]:
-        conf_lit_model["generator"] = eval(conf_lit_model["generator"])
-        conf_lit_model["discriminator"] = eval(conf_lit_model["discriminator"])
-    elif config["lit_model_type"] == "LitVAE":
-        conf_lit_model["vae"] = eval(conf_lit_model["vae"])
-        conf_lit_model["conf_vae"]["encoder_model"] = eval(
-            conf_lit_model["conf_vae"]["encoder_model"]
-        )
-        conf_lit_model["conf_vae"]["decoder_model"] = eval(
-            conf_lit_model["conf_vae"]["decoder_model"]
-        )
-    elif config["lit_model_type"] in ["LitDDPM", "LitDDPM2d"]:
-        conf_lit_model["ema"] = eval(conf_lit_model["ema"])
-        conf_lit_model["diffusion"] = eval(conf_lit_model["diffusion"])
-        conf_lit_model["ddpm"] = eval(conf_lit_model["ddpm"])
-    lit_model = eval(config["lit_model_type"])(log_dir=logs_folder, **conf_lit_model)
+    # if "encoding_layer" in conf_lit_model:
+    #     conf_lit_model["encoding_layer"] = eval(conf_lit_model["encoding_layer"])
+    # if config["lit_model_type"] in ["LitDCGAN", "LitDCGAN2d"]:
+    #     conf_lit_model["generator"] = eval(conf_lit_model["generator"])
+    #     conf_lit_model["discriminator"] = eval(conf_lit_model["discriminator"])
+    # elif config["lit_model_type"] == "LitVAE":
+    #     conf_lit_model["vae"] = eval(conf_lit_model["vae"])
+    #     conf_lit_model["conf_vae"]["encoder_model"] = eval(
+    #         conf_lit_model["conf_vae"]["encoder_model"]
+    #     )
+    #     conf_lit_model["conf_vae"]["decoder_model"] = eval(
+    #         conf_lit_model["conf_vae"]["decoder_model"]
+    #     )
+    # elif config["lit_model_type"] in ["LitDDPM", "LitDDPM2d"]:
+    #     conf_lit_model["ema"] = eval(conf_lit_model["ema"])
+    #     conf_lit_model["diffusion"] = eval(conf_lit_model["diffusion"])
+    #     conf_lit_model["ddpm"] = eval(conf_lit_model["ddpm"])
+    # lit_model = eval(config["lit_model_type"])(log_dir=logs_folder, **conf_lit_model)
+
+    lit_model = instantiate_lit_model(config, logs_folder=logs_folder)
 
     # load trained model if checkpoutint is given
     if checkpoint_path is not None:
@@ -125,15 +118,21 @@ def main(path_config):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
+    # parser.add_argument(
+    #     "--path_config",
+    #     help="config path that contains config for data, models, training.",
+    #     default=[
+    #         # "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/ddpm_ore_maps.yaml",
+    #         # "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/gan_ore_maps.yaml",
+    #         # "configs_runs/gan_ore_maps_fullinject.yaml",
+    #         "configs_runs/ddpm_ore_maps_1000.yaml"
+    #     ],
+    #     required=False,
+    # )
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default=[
-            # "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/ddpm_ore_maps.yaml",
-            # "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/config/gan_ore_maps.yaml",
-            "configs_runs/gan_ore_maps_fullinject.yaml",
-            # "configs_runs/ddpm_ore_maps_1000.yaml"
-        ],
+        default="configs_runs/ddpm_ore_maps_100.yaml",
         required=False,
     )
     parser.add_argument(
@@ -145,9 +144,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.parallel:
-        pool = multiprocessing.Pool()
-        outs = pool.map(main, args.path_config)
-    else:
-        for path in args.path_config:
-            main(path)
+    main(args.path_config)
+    # if args.parallel:
+    #     pool = multiprocessing.Pool()
+    #     outs = pool.map(main, args.path_config)
+    # else:
+    #     for path in args.path_config:
+    #         main(path)

@@ -267,7 +267,7 @@ LAYERS = {
 #         return self.layers(x)
 
 
-def BasicBlock(layer_params, injection=None):
+def BasicBlock(layer_params, injection=None, spectral_norm=None):
     layers = []
     for key, item in layer_params.items():
         if (
@@ -277,9 +277,18 @@ def BasicBlock(layer_params, injection=None):
         ):
             cv_param = list(item)
             cv_param[0] += test0(injection[1], 2)
-            layers.append(
-                LAYERS[key](*cv_param) if cv_param is not None else LAYERS[key]()
-            )
+            if spectral_norm is not None and spectral_norm:
+                nn.utils.spectral_norm(
+                    layers.append(
+                        LAYERS[key](*cv_param)
+                        if cv_param is not None
+                        else LAYERS[key]()
+                    )
+                )
+            else:
+                layers.append(
+                    LAYERS[key](*cv_param) if cv_param is not None else LAYERS[key]()
+                )
         else:
             layers.append(LAYERS[key](*item) if item is not None else LAYERS[key]())
     if len(layers) > 1:

@@ -473,11 +473,16 @@ class LitDDPM2d(LitModel2d):
         self.current_training_step = 0
         self.current_validation_step = 0
 
-    def forward(self, z, y):
-        return self.vae(z.cuda(), y.cuda())
-
     def loss_fn(self, recon_x, x):
         return F.mse_loss(recon_x, x)
+
+    def inference(self, conditions):
+        return self.diffusion.sample(
+            self.model,
+            n=conditions.shape[0],
+            labels=conditions,
+            cfg_scale=self.cfg_scale,
+        )
 
     def training_step(self, batch, batch_idx):
         x, y = batch

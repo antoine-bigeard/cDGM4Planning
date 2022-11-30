@@ -20,8 +20,8 @@ def move_plots(path_log, out_dir):
     with open(os.path.join(path_log, "metrics_img_path.json")) as f:
         paths_dict = json.load(f)
     for k, v in paths_dict.items():
-        if k not in ["L2_measures", "dist_cond_measures"]:
-            local_out_dir = os.path.join(out_dir, f"{v:.3f}")
+        if k not in ["L2_measures", "dist_cond_measures", "samples_per_sec"]:
+            local_out_dir = os.path.join(out_dir, config["name_experiment"], f"{v:.3f}")
             os.makedirs(local_out_dir, exist_ok=True)
             shutil.copy(k, local_out_dir)
             path_gt = os.path.join("/".join(k.split("/")[:-1]), "ground_truth.png")
@@ -35,7 +35,7 @@ def plot(path_logs, out_dir):
     for path_log in path_logs:
         paths_dict, label = move_plots(path_log, out_dir)
         plt.hist(
-            paths_dict["measures_L2"],
+            paths_dict["L2_measures"],
             bins=100,
             density=True,
             histtype="step",
@@ -45,8 +45,8 @@ def plot(path_logs, out_dir):
         values.append(
             [
                 label,
-                np.mean(paths_dict["measures_L2"]),
-                0,
+                np.mean(paths_dict["L2_measures"]),
+                np.mean(paths_dict["dist_cond_measures"]),
                 # np.mean(paths_dict["measures_dist_cond"]),
                 paths_dict["samples_per_sec"],
             ]
@@ -68,7 +68,9 @@ if __name__ == "__main__":
         "--path_logs",
         help="log path that contains logs from previous tests.",
         default=[
-            "logs/ore_maps_ddpm/version_52",
+            "logs/ore_maps_ddpm_100/version_1",
+            "logs/ore_maps_ddpm_500/version_2",
+            "logs/ore_maps_ddpm_1000/version_2",
         ],
         required=False,
     )

@@ -3,7 +3,6 @@ import pytorch_lightning as pl
 import torch
 import numpy as np
 import torch.nn.functional as F
-from src.utils import read_yaml_config_file
 import torch.nn as nn
 
 from torch.nn.utils.parametrizations import spectral_norm
@@ -102,9 +101,9 @@ class LargerDiscriminator2d(nn.Module):
 
         self.common = nn.Sequential(
             *[
-                SpectralNorm(BasicBlock(layer_params))
-                if self.spectral_norm[i]
-                else BasicBlock(layer_params)
+                BasicBlock(
+                    layer_params, injection=None, spectral_norm=self.spectral_norm[i]
+                )
                 for i, layer_params in enumerate(self.layers)
             ]
         )

@@ -3,7 +3,6 @@ import pytorch_lightning as pl
 import torch
 import numpy as np
 import torch.nn.functional as F
-from src.utils import read_yaml_config_file
 import torch.nn as nn
 
 from torch.nn.utils.parametrizations import spectral_norm
