@@ -1,6 +1,6 @@
 name_experiment: ore_maps_ddpm_100
 seed: 1234
-mode: test
+mode: fit
 
 datamodule:
   # name: MyDataModule
