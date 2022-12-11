@@ -41,7 +41,8 @@ class Diffusion2d:
     def sample_timesteps(self, n):
         return torch.randint(low=1, high=self.noise_steps, size=(n,))
 
-    def sample(self, model, n, labels, cfg_scale=3):
+    def sample(self, model, labels, cfg_scale=3):
+        n = labels.shape[0]
         model.eval()
         with torch.no_grad():
             x = torch.randn((n, 1, self.surf_size, self.surf_size)).cuda()

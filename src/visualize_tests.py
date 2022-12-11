@@ -73,6 +73,7 @@ if __name__ == "__main__":
             "logs/ore_maps_ddpm_500/version_2",
             "logs/ore_maps_ddpm_1000/version_2",
             "logs/ore_maps_gan_2inject_wgp/version_1",
+            "logs/ore_maps_gan_fullSN_wgp/version_2",
         ],
         required=False,
     )
@@ -80,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--out_dir",
         help="log path that contains logs from previous tests.",
-        default="logs/test2",
+        default="logs/test3",
         required=False,
     )
 

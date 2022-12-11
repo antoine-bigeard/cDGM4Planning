@@ -23,10 +23,12 @@ import json
 class LitModel2d(pl.LightningModule):
     def __init__(
         self,
-        *args,
-        **kwargs,
+        n_samples_hist: int = 4,
+        metrics: list = ["L2", "L1", "dist_cond"],
     ) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__()
+        self.n_samples_hist = n_samples_hist
+        self.metrics = metrics
 
     def on_fit_start(self) -> None:
         val_fig_batch = [
@@ -50,90 +52,193 @@ class LitModel2d(pl.LightningModule):
         self.y_1_idxs = get_idx_val_2D(self.validation_y)
 
     def on_test_start(self):
-        self.dict_metrics_paths = {}
+        self.dict_metrics_paths = defaultdict(dict)
+        self.metrics_measures = defaultdict(list)
 
-    def on_test_epoch_start(self) -> None:
-        self.L2_measures = []
-        self.dist_cond_measures = []
-        self.samples_per_sec = []
+    def predict_step(self, batch, batch_idx: int):
+        pass
+        # if batch_idx == 0:
+        #     self.test_model(n_obs=self.n_obs, out_folder=self.out_folder)
+
+    def test_model(self, datamodule, n_obs: list, path_output: str):
+        x = torch.stack(
+            [torch.Tensor(datamodule.test_dataset[i][0]) for i in range(len(n_obs))]
+        ).to(self.device)
+
+        labels = torch.cat(
+            [
+                random_observation_ore_maps(
+                    x[i].unsqueeze(0), lambda: n_obs[i], seed=True
+                )
+                for i in range(len(n_obs))
+            ],
+            dim=0,
+        ).to(self.device)
+
+        metrics_measures, metrics_samples = measure_metrics(
+            self.inference_model,
+            x,
+            labels,
+            self.n_sample_for_metric,
+            self.metrics,
+            no_batch=True,
+        )
+        figs, paths = create_figs_best_metrics_2D(
+            metrics_samples,
+            get_idx_val_2D(labels),
+            x,
+            os.path.join(path_output),
+            save=True,
+            sequential_cond=self.sequential_cond,
+        )
+
+        out_file = os.path.join(os.path.join(path_output), "metrics.json")
+        for k, v in metrics_measures.items():
+            metrics_measures[k] = [float(m) for m in v]
+        with open(out_file, "w") as f:
+            json.dump(metrics_measures, f)
+        return figs, paths
 
     def on_test_end(self) -> None:
         img_dir = self.log_dir
-        self.L2_measures = np.stack(self.L2_measures)
-        fig_hist = plt.figure()
-        plt.hist(
-            self.L2_measures,
-            bins=100,
-            density=True,
-            histtype="step",
-            cumulative=True,
-            label="cum_distrib_L2_dist",
-        )
-        plt.savefig(os.path.join(img_dir, "cum_distrib_L2_dist"))
-        fig_cum = plt.figure()
-        plt.hist(
-            self.L2_measures,
-            bins=250,
-            density=True,
-            histtype="step",
-            cumulative=False,
-            label="histogram",
-        )
-        plt.savefig(os.path.join(img_dir, "histogram"))
-        vals_to_keep = keep_samples(self.L2_measures, n=4)
-        new_dict_metrics = {}
-        for k, v in self.dict_metrics_paths.items():
-            if v in vals_to_keep:
-                new_dict_metrics[k] = float(v)
-            # else:
-            #     os.remove(k)
+        new_dict_metrics = defaultdict(dict)
         path_dict = os.path.join(img_dir, "metrics_img_path.json")
-        new_dict_metrics["L2_measures"] = list(
-            map(lambda x: float(x), list(self.L2_measures))
-        )
-        new_dict_metrics["dist_cond_measures"] = list(
-            map(lambda x: float(x), list(self.dist_cond_measures))
-        )
-        new_dict_metrics["samples_per_sec"] = np.mean(self.samples_per_sec)
+        for k, v in self.metrics_measures.items():
+            fig_hist = plt.figure()
+            plt.hist(
+                v,
+                bins=100,
+                density=True,
+                histtype="step",
+                cumulative=True,
+                label=f"cum_distrib_{k}",
+            )
+            plt.savefig(os.path.join(img_dir, f"cum_distrib_{k}"))
+            fig_cum = plt.figure()
+            plt.hist(
+                v,
+                bins=250,
+                density=True,
+                histtype="step",
+                cumulative=False,
+                label=f"histogram_{k}",
+            )
+            plt.savefig(os.path.join(img_dir, f"histogram_{k}"))
+            vals_to_keep = keep_samples(torch.Tensor(v), n=4)
+            for p, m in self.dict_metrics_paths[k].items():
+                if m in vals_to_keep:
+                    new_dict_metrics[k][p] = float(m)
+                # else:
+                #     os.remove(k)
+
+            new_dict_metrics[f"mean_{k}"] = float(np.mean(v))
+            # new_dict_metrics["samples_per_sec"] = np.mean()
+            self.logger.experiment.add_figure(f"histogram_{k}", fig_hist)
+            self.logger.experiment.add_figure(f"cumulative_distribution_{k}", fig_cum)
         with open(path_dict, "w") as f:
             json.dump(new_dict_metrics, f)
-        self.logger.experiment.add_figure(f"histogram", fig_hist)
-        self.logger.experiment.add_figure(f"cumulative_distribution", fig_cum)
+
+    # def on_test_end(self) -> None:
+    #     img_dir = self.log_dir
+    #     self.L2_measures = np.stack(self.L2_measures)
+    #     fig_hist = plt.figure()
+    #     plt.hist(
+    #         self.L2_measures,
+    #         bins=100,
+    #         density=True,
+    #         histtype="step",
+    #         cumulative=True,
+    #         label="cum_distrib_L2_dist",
+    #     )
+    #     plt.savefig(os.path.join(img_dir, "cum_distrib_L2_dist"))
+    #     fig_cum = plt.figure()
+    #     plt.hist(
+    #         self.L2_measures,
+    #         bins=250,
+    #         density=True,
+    #         histtype="step",
+    #         cumulative=False,
+    #         label="histogram",
+    #     )
+    #     plt.savefig(os.path.join(img_dir, "histogram"))
+    #     vals_to_keep = keep_samples(self.L2_measures, n=4)
+    #     new_dict_metrics = {}
+    #     for k, v in self.dict_metrics_paths.items():
+    #         if v in vals_to_keep:
+    #             new_dict_metrics[k] = float(v)
+    #         # else:
+    #         #     os.remove(k)
+    #     path_dict = os.path.join(img_dir, "metrics_img_path.json")
+
+    #     new_dict_metrics["L2_measures"] = list(
+    #         map(lambda x: float(x), list(self.L2_measures))
+    #     )
+    #     new_dict_metrics["dist_cond_measures"] = list(
+    #         map(lambda x: float(x), list(self.dist_cond_measures))
+    #     )
+    #     new_dict_metrics["samples_per_sec"] = np.mean(self.samples_per_sec)
+    #     with open(path_dict, "w") as f:
+    #         json.dump(new_dict_metrics, f)
+    #     self.logger.experiment.add_figure(f"histogram", fig_hist)
+    #     self.logger.experiment.add_figure(f"cumulative_distribution", fig_cum)
 
     def test_step(self, batch, batch_idx):
         img_dir = os.path.join(self.log_dir, f"test_step_{batch_idx}")
         os.makedirs(img_dir, exist_ok=True)
         x, y = batch
         y_1_idxs = get_idx_val_2D(y)
-        (
-            metrics,
-            best_L2,
-            best_cond,
-            std,
-            best_L2_measures,
-            best_cond_dist_measures,
-            samples_per_sec,
-        ) = measure_metrics(self.inference_model, x, y, self.n_sample_for_metric)
+        metrics_measures, metrics_samples = measure_metrics(
+            self.inference_model, x, y, self.n_sample_for_metric, self.metrics
+        )
         figs, paths = create_figs_best_metrics_2D(
-            {"best_L2": best_L2},
+            metrics_samples,
             y_1_idxs,
             x,
             img_dir,
             save=True,
             sequential_cond=self.sequential_cond,
         )
-        for i, fig in enumerate(figs):
-            if len(figs) == 2 * len(paths):
-                if i % 2 == 0:
-                    self.logger.experiment.add_figure(f"test_step_{i}", fig, batch_idx)
-                    self.dict_metrics_paths[paths[i // 2]] = best_L2_measures[i // 2]
-            else:
-                self.logger.experiment.add_figure(f"test_step_{i}", fig, batch_idx)
-                self.dict_metrics_paths[paths[i]] = best_L2_measures[i]
-        self.log_dict(metrics)
-        self.L2_measures += best_L2_measures
-        self.dist_cond_measures += best_cond_dist_measures
-        self.samples_per_sec += samples_per_sec
+        for k, v in metrics_measures.items():
+            self.metrics_measures[k] += v
+        for k, ps in paths.items():
+            if k != "ground_truth":
+                for i, p in enumerate(ps):
+                    self.dict_metrics_paths[k][p] = self.metrics_measures[k][i]
+
+    # def test_step(self, batch, batch_idx):
+    # img_dir = os.path.join(self.log_dir, f"test_step_{batch_idx}")
+    # os.makedirs(img_dir, exist_ok=True)
+    # x, y = batch
+    # y_1_idxs = get_idx_val_2D(y)
+    # (
+    #     metrics,
+    #     best_L2,
+    #     best_cond,
+    #     std,
+    #     best_L2_measures,
+    #     best_cond_dist_measures,
+    #     samples_per_sec,
+    # ) = measure_metrics(self.inference_model, x, y, self.n_sample_for_metric)
+    # figs, paths = create_figs_best_metrics_2D(
+    #     {"best_L2": best_L2},
+    #     y_1_idxs,
+    #     x,
+    #     img_dir,
+    #     save=True,
+    #     sequential_cond=self.sequential_cond,
+    # )
+    # for i, fig in enumerate(figs):
+    #     if len(figs) == 2 * len(paths):
+    #         if i % 2 == 0:
+    #             self.logger.experiment.add_figure(f"test_step_{i}", fig, batch_idx)
+    #             self.dict_metrics_paths[paths[i // 2]] = best_L2_measures[i // 2]
+    #     else:
+    #         self.logger.experiment.add_figure(f"test_step_{i}", fig, batch_idx)
+    #         self.dict_metrics_paths[paths[i]] = best_L2_measures[i]
+    # self.log_dict(metrics)
+    # self.L2_measures += best_L2_measures
+    # self.dist_cond_measures += best_cond_dist_measures
+    # self.samples_per_sec += samples_per_sec
 
 
 class LitDCGAN2d(LitModel2d):
@@ -154,8 +259,9 @@ class LitDCGAN2d(LitModel2d):
         wasserstein_gp_loss=False,
         n_sample_for_metric: int = 100,
         sequential_cond: bool = False,
+        **kwargs,
     ):
-        super().__init__()
+        super().__init__(**kwargs)
         self.save_hyperparameters()
 
         # instantiate models
@@ -230,7 +336,7 @@ class LitDCGAN2d(LitModel2d):
 
         d_output = torch.squeeze(self.discriminator(generated_surface, y.cuda()))
 
-        if self.w_gp_loss:
+        if self.w_gp_loss in ["wgp", "w"]:
             g_loss = -torch.mean(d_output)
         else:
             g_loss = self.g_criterion(
@@ -253,7 +359,7 @@ class LitDCGAN2d(LitModel2d):
         generated_surfaces = self(z, y)
         d_output_fake = torch.squeeze(self.discriminator(generated_surfaces, y.cuda()))
 
-        if self.w_gp_loss:
+        if self.w_gp_loss == "wgp":
             gradient_penalty = calculate_gradient_penalty(
                 self.discriminator, x.data, generated_surfaces.data, y, self.device
             )
@@ -264,6 +370,11 @@ class LitDCGAN2d(LitModel2d):
                 + 10 * gradient_penalty
             )
 
+            return {"d_loss": d_loss, "gradient_penalty": gradient_penalty}
+        elif self.w_gp_loss == "w":
+            d_loss = -torch.mean(d_output_real) + torch.mean(d_output_fake)
+            return {"d_loss": d_loss}
+
         else:
             loss_real = self.d_criterion(
                 d_output_real, torch.ones(x.size(0)).to(self.device)
@@ -272,13 +383,8 @@ class LitDCGAN2d(LitModel2d):
                 d_output_fake, torch.zeros(x.size(0)).to(self.device)
             )
             d_loss = loss_real + loss_fake
+            return {"d_loss": d_loss}
         # loss_fake = d_output.mean()
-
-        return (
-            {"d_loss": d_loss, "gradient_penalty": gradient_penalty}
-            if self.w_gp_loss
-            else {"d_loss": d_loss}
-        )
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, y = batch
@@ -295,7 +401,7 @@ class LitDCGAN2d(LitModel2d):
         if optimizer_idx == 1:
             dis_dict = self.discriminator_step(x, y)
             self.log("train/d_loss", dis_dict["d_loss"], prog_bar=True)
-            if self.w_gp_loss:
+            if self.w_gp_loss == "wgp":
                 self.log(
                     "train/gradient_penalty",
                     dis_dict["gradient_penalty"],
@@ -314,7 +420,7 @@ class LitDCGAN2d(LitModel2d):
         # train discriminator
         dis_dict = self.discriminator_step(x, y)
         self.log("val/d_loss", dis_dict["d_loss"], prog_bar=True)
-        if self.w_gp_loss:
+        if self.w_gp_loss == "wgp":
             self.log(
                 "val/gradient_penalty",
                 dis_dict["gradient_penalty"],
@@ -461,7 +567,6 @@ class LitDDPM2d(LitModel2d):
 
         self.inference_model = lambda labels: self.diffusion.sample(
             self.model,
-            n=self.n_sample_for_metric,
             labels=labels,
             cfg_scale=self.cfg_scale,
         )
@@ -479,7 +584,6 @@ class LitDDPM2d(LitModel2d):
     def inference(self, conditions):
         return self.diffusion.sample(
             self.model,
-            n=conditions.shape[0],
             labels=conditions,
             cfg_scale=self.cfg_scale,
         )
@@ -533,7 +637,6 @@ class LitDDPM2d(LitModel2d):
             sample_surfaces.append(
                 self.diffusion.sample(
                     self.model,
-                    n=self.validation_z.size(0),
                     labels=torch.cat(
                         [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
                         0,

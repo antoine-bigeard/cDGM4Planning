@@ -82,7 +82,11 @@ class MyDataModule(pl.LightningDataModule):
             )
 
         elif stage == "predict":
-            pass
+            self.test_dataset = (
+                MyDataset2d(self.test_df, self.sequential_cond)
+                if self.two_dimensional
+                else MyDataset(self.test_df, self.sequential_cond)
+            )
 
         else:
             raise NotImplementedError
@@ -112,4 +116,8 @@ class MyDataModule(pl.LightningDataModule):
         )
 
     def predict_dataloader(self):
-        pass
+        return DataLoader(
+            self.test_dataset,
+            shuffle=self.shuffle,
+            num_workers=self.num_workers,
+        )

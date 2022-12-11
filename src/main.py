@@ -132,7 +132,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="configs_runs/ddpm_ore_maps_100.yaml",
+        default="configs_runs/gan_ore_maps_fullinject_noT.yaml",
         required=False,
     )
     parser.add_argument(

@@ -1,4 +1,5 @@
 import yaml
+from collections import defaultdict
 import numpy as np
 import pandas as pd
 import torch
@@ -204,9 +205,10 @@ def create_figs_best_metrics_2D(
     save=False,
     sequential_cond=False,
 ):
-    paths = []
+    paths = defaultdict(list)
     figs = []
     for i in range(len(y_1_idx[0])):
+        figs.append({})
         sample_img_dir = os.path.join(img_dir, f"test_best_metric_{i}")
         os.makedirs(sample_img_dir, exist_ok=True)
         cmap = cm.viridis
@@ -224,9 +226,9 @@ def create_figs_best_metrics_2D(
                     edgecolors="black",
                 )
             if save:
-                plt.savefig(os.path.join(sample_img_dir, "sample"))
-                paths.append(os.path.join(sample_img_dir, "sample.png"))
-            figs.append(fig)
+                plt.savefig(os.path.join(sample_img_dir, f"{name}_sample"))
+                paths[name].append(os.path.join(sample_img_dir, f"{name}_sample.png"))
+            figs[-1][name] = fig
             plt.close()
 
         fig = plt.figure()
@@ -242,27 +244,27 @@ def create_figs_best_metrics_2D(
                 edgecolors="black",
             )
         if save:
-            plt.savefig(os.path.join(sample_img_dir, "ground_truth"))
+            plt.savefig(os.path.join(sample_img_dir, f"ground_truth"))
+            paths["ground_truth"].append(os.path.join(sample_img_dir, f"ground_truth"))
         plt.close()
-        figs.append(fig)
+        figs[-1]["ground_truth"] = fig
     return figs, paths
 
 
-def get_idx_val(y):
+def get_idx_val(y, multiple_obs=False):
     # size [2, 64]
     if y.dim() == 2:
         nonzero_idx = torch.where(y[0, :])
         return nonzero_idx, y[1, nonzero_idx[1]]
     # size [B, 2, 64]
-    if y.dim() == 3:
+    if y.dim() == 3 and not multiple_obs:
         nonzero_idx = torch.where(y[:, 0, :])
         return nonzero_idx[1], y[nonzero_idx[0], 1, nonzero_idx[1]]
+    if y.dim() == 3 and multiple_obs:
+        nonzero_idx = torch.where(y[:, 0, :])
+        return nonzero_idx, y[nonzero_idx[0], 1, nonzero_idx[1]]
     # size [B, Seq_size, 2, 64]
     if y.dim() == 4:
-        idxs = torch.full((y.shape[0], y.shape[1]), -1, device=y.device)
-        values = torch.full(
-            (y.shape[0], y.shape[1]), -1, dtype=y.dtype, device=y.device
-        )
         nonzero_idx = torch.where(y[:, :, 0, :] == 1)
         idxs[nonzero_idx[0], nonzero_idx[1]] = nonzero_idx[2]
         values[nonzero_idx[0], nonzero_idx[1]] = y[
@@ -313,7 +315,10 @@ def exp_distrib(lbda=0.2):
 def random_observation_ore_maps(
     x: torch.Tensor,
     distribution=exp_distrib(lbda=0.2),
+    seed=False,
 ):  # x of shape [B, 1, h, w] or [B, 1, w]
+    if seed:
+        rd.seed(1234)
     if x.dim() == 4:
         n, m = x.shape[2], x.shape[3]
         xy_pos = []

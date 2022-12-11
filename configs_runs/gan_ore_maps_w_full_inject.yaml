@@ -1,23 +1,22 @@
-name_experiment: ore_maps_gan_2inject_wgp
+name_experiment: ore_maps_gan_w_full_inject
 seed: 1234
-mode: test
+mode: fit
 
 datamodule:
   # name: MyDataModule
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  batch_size: 1
+  batch_size: 150
   shuffle: False
   num_workers: 4
   pct_train: 0.8
   pct_val: 0.18
-  pct_test: 0.001
+  pct_test: 0.00004
   sequential_cond: False
   two_dimensional: True
 
 lit_model_type: LitDCGAN2d
 lit_model:
-  metrics: [L2, L1, dist_cond, std]
   generator: LargeGeneratorInject2d
   discriminator: LargerDiscriminator2d
   conf_generator:
@@ -33,12 +32,12 @@ lit_model:
     ]
     injections: [
       [True, 0, 1],
-      [False, 2, 0.5],
-      [False, 2, 1],
-      [False, 2, 2],
+      [True, 0, 0.5],
       [True, 0, 1],
-      [False, 2, 1],
-      [False, 2, 1],
+      [True, 0, 2],
+      [True, 0, 1],
+      [True, 0, 1],
+      [True, 0, 1],
     ]
   conf_discriminator:
     layers: [
@@ -79,8 +78,8 @@ lit_model:
   b2: 0.999
   validation_x_shape: [10, 1, 32, 32]
   use_rd_y: True
-  batch_size: 75
-  wasserstein_gp_loss: True
+  batch_size: 150
+  wasserstein_gp_loss: w
   n_sample_for_metric: 100
 
 trainer:
@@ -90,7 +89,7 @@ trainer:
   fast_dev_run: False
   log_every_n_steps: 10
   accelerator: gpu
-  devices: [0]
+  devices: [1]
   # flush_logs_every_n_steps: 10
   # learning_rate: 0.0001
 
@@ -104,4 +103,4 @@ checkpoint_callback: {}
   # save_last: True
   # filename: best-checkpoint
 
-checkpoint_path: logs/ore_maps_gan_2inject_wgp/version_0/checkpoints/epoch=49-step=106700.ckpt
+checkpoint_path: null

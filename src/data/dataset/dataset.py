@@ -2,10 +2,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 import torch
 from typing import Tuple
-import os
 import numpy as np
-import time
-from src.utils import get_idx_val
 
 # from utils import transform_window
 

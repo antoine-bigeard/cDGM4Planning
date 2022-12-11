@@ -245,6 +245,7 @@ LAYERS = {
     "D": nn.Dropout,
     "L": nn.Linear,
     "F": Flatten,
+    "UpSample": nn.Upsample,
 }
 
 
@@ -323,8 +324,8 @@ def BasicBlockY2d(injection):
     elif injection[1] == 0:
         trans = (
             nn.Upsample(scale_factor=injection[2])
-            if injection[3] > 1
-            else nn.AvgPool2d(kernel_size=4, stride=1 / injection[2], padding=1)
+            if injection[2] > 1
+            else nn.AvgPool2d(kernel_size=4, stride=int(1 / injection[2]), padding=1)
         )
     elif injection[1] > 0 and injection[2] == 1:
         trans = nn.Conv2d(2, injection[1], 3, 1, 1)

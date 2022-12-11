@@ -1,4 +1,4 @@
-name_experiment: ore_maps_gan_2inject_wgp
+name_experiment: ore_maps_gan_fullSN_wgp
 seed: 1234
 mode: test
 
@@ -11,13 +11,12 @@ datamodule:
   num_workers: 4
   pct_train: 0.8
   pct_val: 0.18
-  pct_test: 0.001
+  pct_test: 0.02
   sequential_cond: False
   two_dimensional: True
 
 lit_model_type: LitDCGAN2d
 lit_model:
-  metrics: [L2, L1, dist_cond, std]
   generator: LargeGeneratorInject2d
   discriminator: LargerDiscriminator2d
   conf_generator:
@@ -58,20 +57,20 @@ lit_model:
       {L: [2048, 1]},
     ]
     spectral_norm: [
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
-      False,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
+      True,
     ]
   g_lr: 0.0002
   d_lr: 0.0002
@@ -79,8 +78,8 @@ lit_model:
   b2: 0.999
   validation_x_shape: [10, 1, 32, 32]
   use_rd_y: True
-  batch_size: 75
-  wasserstein_gp_loss: True
+  batch_size: 150
+  wasserstein_gp_loss: wpg
   n_sample_for_metric: 100
 
 trainer:
@@ -90,7 +89,7 @@ trainer:
   fast_dev_run: False
   log_every_n_steps: 10
   accelerator: gpu
-  devices: [0]
+  devices: [3]
   # flush_logs_every_n_steps: 10
   # learning_rate: 0.0001
 
@@ -104,4 +103,4 @@ checkpoint_callback: {}
   # save_last: True
   # filename: best-checkpoint
 
-checkpoint_path: logs/ore_maps_gan_2inject_wgp/version_0/checkpoints/epoch=49-step=106700.ckpt
+checkpoint_path: logs/ore_maps_gan_fullSN_wgp/version_0/checkpoints/epoch=49-step=53400.ckpt

@@ -1,3 +1,5 @@
+import pytorch_lightning as pl
+
 from src.model.lit_model.lit_models import LitDCGAN, LitDDPM, LitVAE
 from src.model.model.DCGAN import LargeGeneratorInject, LargerDiscriminator
 from src.model.lit_model.lit_models2d import LitDCGAN2d, LitDDPM2d
@@ -8,7 +10,7 @@ from src.model.model.DDPM2d import Diffusion2d
 from src.model.model.modules_diffusion2d import UNet_conditional2d, EMA2d
 
 
-def instantiate_lit_model(config, logs_folder=None):
+def instantiate_lit_model(config, logs_folder=None) -> pl.LightningModule:
     conf_lit_model = config.get("lit_model")
     if "encoding_layer" in conf_lit_model:
         conf_lit_model["encoding_layer"] = eval(conf_lit_model["encoding_layer"])
