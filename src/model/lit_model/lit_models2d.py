@@ -61,43 +61,44 @@ class LitModel2d(pl.LightningModule):
         #     self.test_model(n_obs=self.n_obs, out_folder=self.out_folder)
 
     def test_model(self, datamodule, n_obs: list, path_output: str):
-        x = torch.stack(
-            [torch.Tensor(datamodule.test_dataset[i][0]) for i in range(len(n_obs))]
-        ).to(self.device)
+        with torch.no_grad():
+            x = torch.stack(
+                [torch.Tensor(datamodule.test_dataset[i][0]) for i in range(len(n_obs))]
+            ).to(self.device)
 
-        labels = torch.cat(
-            [
-                random_observation_ore_maps(
-                    x[i].unsqueeze(0), lambda: n_obs[i], seed=True
-                )
-                for i in range(len(n_obs))
-            ],
-            dim=0,
-        ).to(self.device)
+            labels = torch.cat(
+                [
+                    random_observation_ore_maps(
+                        x[i].unsqueeze(0), lambda: n_obs[i], seed=True
+                    )
+                    for i in range(len(n_obs))
+                ],
+                dim=0,
+            ).to(self.device)
 
-        metrics_measures, metrics_samples = measure_metrics(
-            self.inference_model,
-            x,
-            labels,
-            self.n_sample_for_metric,
-            self.metrics,
-            no_batch=True,
-        )
-        figs, paths = create_figs_best_metrics_2D(
-            metrics_samples,
-            get_idx_val_2D(labels),
-            x,
-            os.path.join(path_output),
-            save=True,
-            sequential_cond=self.sequential_cond,
-        )
+            metrics_measures, metrics_samples = measure_metrics(
+                self.inference_model,
+                x,
+                labels,
+                self.n_sample_for_metric,
+                self.metrics,
+                no_batch=True,
+            )
+            figs, paths = create_figs_best_metrics_2D(
+                metrics_samples,
+                get_idx_val_2D(labels),
+                x,
+                os.path.join(path_output),
+                save=True,
+                sequential_cond=self.sequential_cond,
+            )
 
-        out_file = os.path.join(os.path.join(path_output), "metrics.json")
-        for k, v in metrics_measures.items():
-            metrics_measures[k] = [float(m) for m in v]
-        with open(out_file, "w") as f:
-            json.dump(metrics_measures, f)
-        return figs, paths
+            out_file = os.path.join(os.path.join(path_output), "metrics.json")
+            for k, v in metrics_measures.items():
+                metrics_measures[k] = [float(m) for m in v]
+            with open(out_file, "w") as f:
+                json.dump(metrics_measures, f)
+            return x, get_idx_val_2D(labels), metrics_samples, metrics_measures
 
     def on_test_end(self) -> None:
         img_dir = self.log_dir

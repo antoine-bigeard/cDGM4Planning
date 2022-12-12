@@ -242,8 +242,8 @@ def measure_metrics(
                 n_sample_for_metric=n_sample_for_metric,
             )
             for k, v in new_metrics.items():
-                metrics_measures[k] += [item[0] for item in v]
-                metrics_samples[k] += [item[1] for item in v]
+                metrics_measures[k] += [item[0].cpu() for item in v]
+                metrics_samples[k] += [item[1].cpu() for item in v]
                 # else:
                 #     metrics_measures[k].append(v)
         return metrics_measures, metrics_samples

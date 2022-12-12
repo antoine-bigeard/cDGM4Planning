@@ -197,6 +197,21 @@ def create_figs_best_metrics(
     return figs, paths
 
 
+def plot_fig_2D(ax, sample, y_1_idx, i):
+    cmap = cm.viridis
+    ax.imshow(sample.squeeze().detach().cpu(), cmap=cmap)
+    for j in range(len(y_1_idx[0][i])):
+        observation_pt = (y_1_idx[0][i][j].cpu(), y_1_idx[1][i][j].cpu())
+        ax.scatter(
+            [observation_pt[0][1]],
+            [observation_pt[0][0]],
+            color=cmap(observation_pt[1]),
+            marker=".",
+            s=150,
+            edgecolors="black",
+        )
+
+
 def create_figs_best_metrics_2D(
     best_samples,
     y_1_idx,
