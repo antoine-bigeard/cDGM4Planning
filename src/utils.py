@@ -133,7 +133,7 @@ def create_figs_2D(
                         color=cmap(observation_pt[1]),
                         marker=".",
                         s=150,
-                        edgecolors="black",
+                        edgecolors="white",
                     )
             else:
                 for j in range(len(y_1_idxs[0][i])):
@@ -208,7 +208,7 @@ def plot_fig_2D(ax, sample, y_1_idx, i):
             color=cmap(observation_pt[1]),
             marker=".",
             s=150,
-            edgecolors="black",
+            edgecolors="white",
         )
 
 
@@ -220,6 +220,7 @@ def create_figs_best_metrics_2D(
     save=False,
     sequential_cond=False,
 ):
+    img_dir = os.path.join(img_dir, "images")
     paths = defaultdict(list)
     figs = []
     for i in range(len(y_1_idx[0])):
@@ -238,7 +239,7 @@ def create_figs_best_metrics_2D(
                     color=cmap(observation_pt[1]),
                     marker=".",
                     s=150,
-                    edgecolors="black",
+                    edgecolors="white",
                 )
             if save:
                 plt.savefig(os.path.join(sample_img_dir, f"{name}_sample"))
@@ -256,7 +257,7 @@ def create_figs_best_metrics_2D(
                 color=cmap(observation_pt[1]),
                 marker=".",
                 s=150,
-                edgecolors="black",
+                edgecolors="white",
             )
         if save:
             plt.savefig(os.path.join(sample_img_dir, f"ground_truth"))

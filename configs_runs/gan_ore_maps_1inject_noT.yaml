@@ -1,17 +1,17 @@
 name_experiment: ore_maps_gan_1inject_noT
 seed: 1234
-mode: fit
+mode: test
 
 datamodule:
   # name: MyDataModule
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  batch_size: 128
+  batch_size: 1
   shuffle: False
   num_workers: 4
   pct_train: 0.8
   pct_val: 0.18
-  pct_test: 0.00004
+  pct_test: 0.01
   sequential_cond: False
   two_dimensional: True
 
@@ -109,4 +109,4 @@ checkpoint_callback: {}
   # save_last: True
   # filename: best-checkpoint
 
-checkpoint_path: null
+checkpoint_path: logs/ore_maps_gan_1inject_noT/version_0/checkpoints/epoch=49-step=62500.ckpt

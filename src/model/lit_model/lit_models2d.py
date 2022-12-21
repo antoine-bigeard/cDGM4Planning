@@ -133,6 +133,7 @@ class LitModel2d(pl.LightningModule):
                 #     os.remove(k)
 
             new_dict_metrics[f"mean_{k}"] = float(np.mean(v))
+            new_dict_metrics[f"{k}_measures"] = list(map(lambda x: float(x), list(v)))
             # new_dict_metrics["samples_per_sec"] = np.mean()
             self.logger.experiment.add_figure(f"histogram_{k}", fig_hist)
             self.logger.experiment.add_figure(f"cumulative_distribution_{k}", fig_cum)

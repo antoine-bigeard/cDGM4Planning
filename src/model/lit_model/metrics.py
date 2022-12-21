@@ -11,21 +11,16 @@ from time import time
 def compute_L2(preds, targets, p=2, y_1_idxs=None):
     # return (preds-targets).square().sum(dim=(1,2,3)).sqrt()
     if preds.dim() == 3:
-        return torch.cdist(preds, targets, p=p).cpu().float()
+        return (preds - targets).abs().pow(p).mean().cpu().float()
+        return torch.cdist(preds, targets, p=p).cpu().float() / preds.shape[2]
     elif preds.dim() == 4:
-        return (
-            torch.cdist(
-                preds.view(
-                    preds.shape[0], preds.shape[1], preds.shape[2] * preds.shape[3]
-                ),
-                targets.view(
-                    preds.shape[0], preds.shape[1], preds.shape[2] * preds.shape[3]
-                ),
-                p=p,
-            )
-            .cpu()
-            .float()
-        )
+        return torch.cdist(
+            preds.view(preds.shape[0], preds.shape[1], preds.shape[2] * preds.shape[3]),
+            targets.view(
+                preds.shape[0], preds.shape[1], preds.shape[2] * preds.shape[3]
+            ),
+            p=p,
+        ).cpu().float() / (preds.shape[2] * preds.shape[3])
 
 
 def compute_cond_dist(preds, targets, y_1_idxs):

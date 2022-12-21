@@ -6,7 +6,7 @@ datamodule:
   # name: MyDataModule
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  batch_size: 1
+  batch_size: 4
   shuffle: False
   num_workers: 4
   pct_train: 0.8
@@ -47,7 +47,7 @@ trainer:
   max_epochs: 50
   fast_dev_run: False
   accelerator: gpu
-  devices: [1]
+  devices: [2]
   log_every_n_steps: 10
 
 tensorboard_logs:

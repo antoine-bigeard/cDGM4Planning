@@ -15,8 +15,6 @@ import argparse
 import os
 import yaml
 import torch
-from multiprocessing import Process
-import multiprocessing
 
 
 def main(path_config):

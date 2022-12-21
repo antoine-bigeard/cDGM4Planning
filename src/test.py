@@ -9,10 +9,10 @@ from src.data.datamodule.datamodule import MyDataModule
 from src.utils import read_yaml_config_file, plot_fig_2D
 from src.main_utils import instantiate_lit_model
 import torch
-import matplotlib.cm as cm
+import argparse
 
 
-def test(config, datamodule, path_ckpt, n_obs, path_output):
+def cond_test_model(config, datamodule, path_ckpt, n_obs, path_output):
     config["trainer"]["devices"] = [3]
     lit_model = instantiate_lit_model(config)
     lit_model = lit_model.load_from_checkpoint(path_ckpt).cuda()
@@ -37,37 +37,25 @@ def test(config, datamodule, path_ckpt, n_obs, path_output):
         path_output,
     )
 
-    # trainer.predict(lit_model, datamodule)
 
+def main_test(path_config):
+    main_test_config = read_yaml_config_file(path_config)
 
-if __name__ == "__main__":
-    n_obs = [1, 2, 3, 5, 8, 12, 16, 20]
-    path_logs = [
-        "logs/ore_maps_gan_fullSN_wgp/version_0",
-        "logs/ore_maps_gan_2inject_wgp/version_0",
-        "logs/ore_maps_ddpm_100/version_0",
-        "logs/ore_maps_ddpm_250/version_0",
-        "logs/ore_maps_ddpm_500/version_0",
-        "logs/ore_maps_ddpm_1000/version_0",
-    ]
-    path_confs = [
-        "configs_runs/gan_ore_maps_fullSN_wgp.yaml",
-        "configs_runs/gan_ore_maps_2inject_wgp.yaml",
-        "configs_runs/ddpm_ore_maps_100.yaml",
-        "configs_runs/ddpm_ore_maps_250.yaml",
-        "configs_runs/ddpm_ore_maps_500.yaml",
-        "configs_runs/ddpm_ore_maps_1000.yaml",
-    ]
-    path_output = "logs/test"
+    n_obs = main_test_config.get("n_obs")
+    path_logs = main_test_config.get("path_logs")
+    path_confs = main_test_config.get("path_confs")
+    path_output = main_test_config.get("path_output")
+    path_saved_tests = main_test_config.get("path_saved_tests")
+
+    update_conf_datamodule = main_test_config.get("datamodule")
+    update_conf_datamodule = {} if update_conf_datamodule is None else update_conf_datamodule
 
     os.makedirs(path_output, exist_ok=True)
-    # figs, paths = []
     metrics_samples = []
     ground_truths = []
     y_1_idxs = []
     metrics_measures = []
     for log, conf in zip(path_logs, path_confs):
-        # config = read_yaml_config_file(os.path.join(log, "config.yaml"))
         config = read_yaml_config_file(conf)
         ckpts = os.listdir(os.path.join(log, "checkpoints"))
 
@@ -76,21 +64,40 @@ if __name__ == "__main__":
             if "best" in ckpt:
                 path_ckpt = os.path.join(log, "checkpoints", ckpt)
 
-        datamodule = MyDataModule(**config.get("datamodule"))
+        conf_datamodule = config.get("datamodule")
+        conf_datamodule.update(update_conf_datamodule)
+        datamodule = MyDataModule(**conf_datamodule)
         datamodule.setup(stage="test")
 
-        x, tmp_y_1_idx, tmp_metrics_samples, tmp_metrics_measures = test(
-            config,
-            datamodule,
-            path_ckpt,
-            n_obs,
-            os.path.join(
-                path_output,
-                config["name_experiment"],
-            ),
+        path_exp = os.path.join(
+            path_output,
+            config["name_experiment"],
         )
+        if path_saved_tests is None:
+            x, tmp_y_1_idx, tmp_metrics_samples, tmp_metrics_measures = cond_test_model(
+                config,
+                datamodule,
+                path_ckpt,
+                n_obs,
+                path_exp,
+            )
+            torch.save(x, os.path.join(path_exp, "x.pt"))
+            torch.save(tmp_y_1_idx, os.path.join(path_exp, "y_1_idx.pt"))
+            torch.save(
+                tmp_metrics_samples, os.path.join(path_exp, "metrics_samples.pt")
+            )
+            torch.save(
+                tmp_metrics_measures, os.path.join(path_exp, "metrics_measures.pt")
+            )
 
-        torch.cuda.empty_cache()
+        else:
+            path_exp = os.path.join(path_saved_tests, config["name_experiment"])
+            x, tmp_y_1_idx, tmp_metrics_samples, tmp_metrics_measures = (
+                torch.load(os.path.join(path_exp, "x.pt")),
+                torch.load(os.path.join(path_exp, "y_1_idx.pt")),
+                torch.load(os.path.join(path_exp, "metrics_samples.pt")),
+                torch.load(os.path.join(path_exp, "metrics_measures.pt")),
+            )
 
         metrics_samples.append(tmp_metrics_samples)
         ground_truths.append(x)
@@ -102,14 +109,7 @@ if __name__ == "__main__":
             len(n_obs),
             len(path_confs) + 1,
             figsize=(50, 50),
-            # gridspec_kw={
-            #     # "width_ratios": [20] * (len(path_confs) + 1),
-            #     # "height_ratios": [20] * len(n_obs),
-            #     "wspace": 0,
-            #     "hspace": 0.1,
-            # },
         )
-        # fig.tight_layout()
         fig.suptitle(f"Results for {name_metric} metric")
         for i in range(len(n_obs)):
             plot_fig_2D(
@@ -118,21 +118,6 @@ if __name__ == "__main__":
                 y_1_idxs[0],
                 i,
             )
-            # sample = ground_truths[0][i]
-            # y_1_idx = y_1_idxs[0]
-            # cmap = cm.viridis
-            # i = 0
-            # axs[i, 0].imshow(sample.squeeze().detach().cpu(), cmap=cmap)
-            # for j in range(len(y_1_idx[0][i])):
-            #     observation_pt = (y_1_idx[0][i][j].cpu(), y_1_idx[1][i][j].cpu())
-            #     axs[i, 0].scatter(
-            #         [observation_pt[0][1]],
-            #         [observation_pt[0][0]],
-            #         color=cmap(observation_pt[1]),
-            #         marker=".",
-            #         s=150,
-            #         edgecolors="black",
-            #     )
             for j in range(1, len(path_confs) + 1):
                 plot_fig_2D(
                     axs[i][j],
@@ -140,21 +125,21 @@ if __name__ == "__main__":
                     y_1_idxs[j - 1],
                     i,
                 )
-                axs[i, j].set_title(path_confs[j - 1].split("/")[1])
-                # sample = ground_truths[0][i]
-                # y_1_idx = y_1_idxs[0]
-                # cmap = cm.viridis
-                # i = 0
-                # axs[i, 0].imshow(sample.squeeze().detach().cpu(), cmap=cmap)
-                # for j in range(len(y_1_idx[0][i])):
-                #     observation_pt = (y_1_idx[0][i][j].cpu(), y_1_idx[1][i][j].cpu())
-                #     axs[i, 0].scatter(
-                #         [observation_pt[0][1]],
-                #         [observation_pt[0][0]],
-                #         color=cmap(observation_pt[1]),
-                #         marker=".",
-                #         s=150,
-                #         edgecolors="black",
-                #     )
+                axs[i, j].set_title(
+                    f"{name_metric}: {metrics_measures[j - 1][name_metric][i]:.4f}",
+                )
         plt.tight_layout(pad=0, w_pad=0, h_pad=0)
         plt.savefig(os.path.join(path_output, f"table_results_{name_metric}.jpg"))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--path_config",
+        help="config path that contains config to test the models on various conditions.",
+        default="configs_cond_tests/test_all.yaml",
+        required=False,
+    )
+    args = parser.parse_args()
+
+    main_test(args.path_config)
