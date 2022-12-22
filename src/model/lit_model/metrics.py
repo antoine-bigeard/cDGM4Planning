@@ -1,11 +1,7 @@
 from collections import defaultdict
 
-from torchmetrics import Metric
 import torch
-import torch.nn as nn
-from torchmetrics.functional import pearson_corrcoef
-from src.utils import get_idx_val, get_idx_val_2D
-from time import time
+from src.utils import get_idx_val
 
 
 def compute_L2(preds, targets, p=2, y_1_idxs=None):

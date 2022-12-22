@@ -213,28 +213,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--path_logs",
-        help="log path that contains logs from previous tests.",
-        default=[
-            "logs/ore_maps_ddpm_100/version_5",
-            "logs/ore_maps_ddpm_250/version_5",
-            "logs/ore_maps_ddpm_500/version_6",
-            "logs/ore_maps_ddpm_1000/version_6",
-            "logs/ore_maps_gan_2inject_wgp/version_2",
-            "logs/ore_maps_gan_fullSN_wgp/version_4",
-            "logs/ore_maps_gan_fullinject_noT/version_2",
-            "logs/ore_maps_gan_1inject_noT/version_2",
-        ],
-        required=False,
-    )
-
-    parser.add_argument(
-        "--out_dir",
-        help="log path that contains logs from previous tests.",
-        default="logs/plots/red_green",
+        "--path_config",
+        default="configs_visualize/visualize.yaml"
         required=False,
     )
 
     args = parser.parse_args()
 
-    plot(args.path_logs, args.out_dir)
+    plot(args.path_config)

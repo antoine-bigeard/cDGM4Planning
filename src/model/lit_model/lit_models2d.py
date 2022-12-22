@@ -57,8 +57,6 @@ class LitModel2d(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx: int):
         pass
-        # if batch_idx == 0:
-        #     self.test_model(n_obs=self.n_obs, out_folder=self.out_folder)
 
     def test_model(self, datamodule, n_obs: list, path_output: str):
         with torch.no_grad():
@@ -103,6 +101,7 @@ class LitModel2d(pl.LightningModule):
     def on_test_end(self) -> None:
         img_dir = self.log_dir
         new_dict_metrics = defaultdict(dict)
+        new_dict_metrics["paths"] = defaultdict(dict)
         path_dict = os.path.join(img_dir, "metrics_img_path.json")
         for k, v in self.metrics_measures.items():
             fig_hist = plt.figure()
@@ -128,7 +127,7 @@ class LitModel2d(pl.LightningModule):
             vals_to_keep = keep_samples(torch.Tensor(v), n=4)
             for p, m in self.dict_metrics_paths[k].items():
                 if m in vals_to_keep:
-                    new_dict_metrics[k][p] = float(m)
+                    new_dict_metrics["paths"][k][p] = float(m)
                 # else:
                 #     os.remove(k)
 
@@ -140,52 +139,8 @@ class LitModel2d(pl.LightningModule):
         with open(path_dict, "w") as f:
             json.dump(new_dict_metrics, f)
 
-    # def on_test_end(self) -> None:
-    #     img_dir = self.log_dir
-    #     self.L2_measures = np.stack(self.L2_measures)
-    #     fig_hist = plt.figure()
-    #     plt.hist(
-    #         self.L2_measures,
-    #         bins=100,
-    #         density=True,
-    #         histtype="step",
-    #         cumulative=True,
-    #         label="cum_distrib_L2_dist",
-    #     )
-    #     plt.savefig(os.path.join(img_dir, "cum_distrib_L2_dist"))
-    #     fig_cum = plt.figure()
-    #     plt.hist(
-    #         self.L2_measures,
-    #         bins=250,
-    #         density=True,
-    #         histtype="step",
-    #         cumulative=False,
-    #         label="histogram",
-    #     )
-    #     plt.savefig(os.path.join(img_dir, "histogram"))
-    #     vals_to_keep = keep_samples(self.L2_measures, n=4)
-    #     new_dict_metrics = {}
-    #     for k, v in self.dict_metrics_paths.items():
-    #         if v in vals_to_keep:
-    #             new_dict_metrics[k] = float(v)
-    #         # else:
-    #         #     os.remove(k)
-    #     path_dict = os.path.join(img_dir, "metrics_img_path.json")
-
-    #     new_dict_metrics["L2_measures"] = list(
-    #         map(lambda x: float(x), list(self.L2_measures))
-    #     )
-    #     new_dict_metrics["dist_cond_measures"] = list(
-    #         map(lambda x: float(x), list(self.dist_cond_measures))
-    #     )
-    #     new_dict_metrics["samples_per_sec"] = np.mean(self.samples_per_sec)
-    #     with open(path_dict, "w") as f:
-    #         json.dump(new_dict_metrics, f)
-    #     self.logger.experiment.add_figure(f"histogram", fig_hist)
-    #     self.logger.experiment.add_figure(f"cumulative_distribution", fig_cum)
-
     def test_step(self, batch, batch_idx):
-        img_dir = os.path.join(self.log_dir, f"test_step_{batch_idx}")
+        img_dir = os.path.join(self.log_dir, "images", f"test_step_{batch_idx}")
         os.makedirs(img_dir, exist_ok=True)
         x, y = batch
         y_1_idxs = get_idx_val_2D(y)
@@ -206,41 +161,6 @@ class LitModel2d(pl.LightningModule):
             if k != "ground_truth":
                 for i, p in enumerate(ps):
                     self.dict_metrics_paths[k][p] = self.metrics_measures[k][i]
-
-    # def test_step(self, batch, batch_idx):
-    # img_dir = os.path.join(self.log_dir, f"test_step_{batch_idx}")
-    # os.makedirs(img_dir, exist_ok=True)
-    # x, y = batch
-    # y_1_idxs = get_idx_val_2D(y)
-    # (
-    #     metrics,
-    #     best_L2,
-    #     best_cond,
-    #     std,
-    #     best_L2_measures,
-    #     best_cond_dist_measures,
-    #     samples_per_sec,
-    # ) = measure_metrics(self.inference_model, x, y, self.n_sample_for_metric)
-    # figs, paths = create_figs_best_metrics_2D(
-    #     {"best_L2": best_L2},
-    #     y_1_idxs,
-    #     x,
-    #     img_dir,
-    #     save=True,
-    #     sequential_cond=self.sequential_cond,
-    # )
-    # for i, fig in enumerate(figs):
-    #     if len(figs) == 2 * len(paths):
-    #         if i % 2 == 0:
-    #             self.logger.experiment.add_figure(f"test_step_{i}", fig, batch_idx)
-    #             self.dict_metrics_paths[paths[i // 2]] = best_L2_measures[i // 2]
-    #     else:
-    #         self.logger.experiment.add_figure(f"test_step_{i}", fig, batch_idx)
-    #         self.dict_metrics_paths[paths[i]] = best_L2_measures[i]
-    # self.log_dict(metrics)
-    # self.L2_measures += best_L2_measures
-    # self.dist_cond_measures += best_cond_dist_measures
-    # self.samples_per_sec += samples_per_sec
 
 
 class LitDCGAN2d(LitModel2d):
@@ -481,27 +401,6 @@ class LitDCGAN2d(LitModel2d):
         self.trainer.save_checkpoint(
             os.path.join(self.log_dir, "ckpts", f"epoch_{self.current_epoch}")
         )
-
-    # def test_step(self, batch, batch_idx):
-    #     img_dir = os.path.join(self.log_dir, f"test_step_{batch_idx}")
-    #     os.makedirs(img_dir, exist_ok=True)
-    #     x, y = batch
-    #     y_1_idxs = get_idx_val_2D(y)
-
-    #     metrics, best_L2, best_cond, std = measure_metrics(
-    #         inference_model, x, y, self.n_sample_for_metric
-    #     )
-    #     figs = create_figs_best_metrics_2D(
-    #         {"best_L2": best_L2, "std": std},
-    #         y_1_idxs,
-    #         x,
-    #         img_dir,
-    #         save=True,
-    #         sequential_cond=self.sequential_cond,
-    #     )
-    #     for i, fig in enumerate(figs):
-    #         self.logger.experiment.add_figure(f"test_step_{i}", fig, batch_idx)
-    #     self.log_dict(metrics)
 
 
 class LitDDPM2d(LitModel2d):

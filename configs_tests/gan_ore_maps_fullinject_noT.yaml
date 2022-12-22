@@ -11,7 +11,7 @@ datamodule:
   num_workers: 4
   pct_train: 0.8
   pct_val: 0.18
-  pct_test: 0.005
+  pct_test: 0.001
   sequential_cond: False
   two_dimensional: True
 
