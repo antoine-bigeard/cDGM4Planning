@@ -33,16 +33,28 @@ class LargeGeneratorInject2d(nn.Module):
             (False, 2, 1),
         ],  # (True to inject y, number of channels to use for convolution before injection (if 0 no convolution used))
         encoding_layer=None,
+        latent_1d=False,
     ):
         super().__init__()
         self.latent_dim = latent_dim
         self.injections = injections
         self.layers = layers
         self.encoding_layer = encoding_layer
+        self.latent_1d = latent_1d
 
-        self.latent = nn.Sequential(
-            nn.Conv2d(1, 128, 3, 1, 1),
-            nn.LeakyReLU(0.2, inplace=False),
+        self.latent = (
+            nn.Sequential(
+                nn.Linear(self.latent_dim, 32 * 32 * 32),
+                View([32, 32, 32]),
+                nn.LeakyReLU(0.2, inplace=False),
+                nn.Conv2d(32, 128, 3, 1, 1),
+                nn.BatchNorm2d(128),
+            )
+            if self.latent_1d
+            else nn.Sequential(
+                nn.Conv2d(1, 128, 3, 1, 1),
+                nn.LeakyReLU(0.2, inplace=False),
+            )
         )
 
         self.common = nn.Sequential(
@@ -57,7 +69,10 @@ class LargeGeneratorInject2d(nn.Module):
         )
 
     def inference(self, y: torch.Tensor, latent_dim=20):
-        z = torch.randn(y.shape[0], 1, latent_dim, latent_dim).cuda()
+        if self.latent_1d:
+            z = torch.randn(y.shape[0], 1, latent_dim).cuda()
+        else:
+            z = torch.randn(y.shape[0], 1, latent_dim, latent_dim).cuda()
         return self.forward(z, y)
 
     def forward(self, z: torch.Tensor, y: torch.Tensor):
@@ -93,11 +108,13 @@ class LargerDiscriminator2d(nn.Module):
         spectral_norm=[False, False, False, False, False, False, False, False],
         sequential_cond: bool = False,
         encoding_layer=None,
+        no_inject: bool = False,
     ):
         super().__init__()
         self.layers = layers
         self.spectral_norm = spectral_norm
         self.encoding_layer = encoding_layer
+        self.no_inject = no_inject
 
         self.common = nn.Sequential(
             *[
@@ -113,5 +130,8 @@ class LargerDiscriminator2d(nn.Module):
         y = y.float()
         if self.encoding_layer is not None:
             y = self.encoding_layer(y).cuda()
-        input_disc = torch.cat([x, y], dim=1)
+        if self.no_inject:
+            input_disc = x
+        else:
+            input_disc = torch.cat([x, y], dim=1)
         return self.common(input_disc)

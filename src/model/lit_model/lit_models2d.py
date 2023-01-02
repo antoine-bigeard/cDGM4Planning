@@ -131,7 +131,7 @@ class LitModel2d(pl.LightningModule):
                 # else:
                 #     os.remove(k)
 
-            new_dict_metrics[f"mean_{k}"] = float(np.mean(v))
+            new_dict_metrics[f"{k}_mean"] = float(np.mean(v))
             new_dict_metrics[f"{k}_measures"] = list(map(lambda x: float(x), list(v)))
             # new_dict_metrics["samples_per_sec"] = np.mean()
             self.logger.experiment.add_figure(f"histogram_{k}", fig_hist)
@@ -181,6 +181,7 @@ class LitDCGAN2d(LitModel2d):
         wasserstein_gp_loss=False,
         n_sample_for_metric: int = 100,
         sequential_cond: bool = False,
+        latent_1d: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -202,7 +203,9 @@ class LitDCGAN2d(LitModel2d):
         self.conf_generator = conf_generator
         self.conf_discriminator = conf_discriminator
         self.generator = generator(
-            **self.conf_generator, encoding_layer=self.encoding_layer_gen
+            **self.conf_generator,
+            encoding_layer=self.encoding_layer_gen,
+            latent_1d=latent_1d,
         )
         self.discriminator = discriminator(
             **self.conf_discriminator, encoding_layer=self.encoding_layer_dis
@@ -219,21 +222,35 @@ class LitDCGAN2d(LitModel2d):
         self.batch_size = batch_size
         self.w_gp_loss = wasserstein_gp_loss
         self.n_sample_for_metric = n_sample_for_metric
+        self.latent_1d = latent_1d
 
         self.inference_model = lambda labels: self.generator.inference(
             labels, self.latent_dim
         )
 
-        self.validation_z = torch.randn(
-            self.validation_x_shape[0],
-            1,
-            self.latent_dim,
-            self.latent_dim,
-            device=self.device,
+        self.validation_z = (
+            torch.randn(
+                self.validation_x_shape[0],
+                1,
+                self.latent_dim,
+                device=self.device,
+            )
+            if self.latent_1d
+            else torch.randn(
+                self.validation_x_shape[0],
+                1,
+                self.latent_dim,
+                self.latent_dim,
+                device=self.device,
+            )
         )
-        self.val_z_best_metrics = torch.randn(
-            self.n_sample_for_metric, 1, self.latent_dim, self.latent_dim
-        ).to(self.device)
+        self.val_z_best_metrics = (
+            torch.randn(self.n_sample_for_metric, 1, self.latent_dim).to(self.device)
+            if self.latent_1d
+            else torch.randn(
+                self.n_sample_for_metric, 1, self.latent_dim, self.latent_dim
+            ).to(self.device)
+        )
 
         self.current_training_step = 0
         self.current_validation_step = 0
@@ -250,7 +267,13 @@ class LitDCGAN2d(LitModel2d):
         # return F.binary_cross_entropy(pred, target)
 
     def generator_step(self, y, x):
-        z = torch.randn(x.shape[0], 1, self.latent_dim, self.latent_dim).to(self.device)
+        z = (
+            torch.randn(x.shape[0], 1, self.latent_dim).to(self.device)
+            if self.latent_1d
+            else torch.randn(x.shape[0], 1, self.latent_dim, self.latent_dim).to(
+                self.device
+            )
+        )
         if self.use_rd_y:
             y = random_observation_ore_maps(x).to(self.device)
 
@@ -259,7 +282,8 @@ class LitDCGAN2d(LitModel2d):
         d_output = torch.squeeze(self.discriminator(generated_surface, y.cuda()))
 
         if self.w_gp_loss in ["wgp", "w"]:
-            g_loss = -torch.mean(d_output)
+            # g_loss = -torch.mean(d_output)
+            g_loss = F.softplus(-d_output).mean()
         else:
             g_loss = self.g_criterion(
                 d_output, torch.ones(x.shape[0]).to(self.device)
@@ -274,7 +298,13 @@ class LitDCGAN2d(LitModel2d):
         # loss_real = d_output.mean()
 
         # Loss for the generated samples
-        z = torch.randn(x.size(0), 1, self.latent_dim, self.latent_dim).to(self.device)
+        z = (
+            torch.randn(x.shape[0], 1, self.latent_dim).to(self.device)
+            if self.latent_1d
+            else torch.randn(x.shape[0], 1, self.latent_dim, self.latent_dim).to(
+                self.device
+            )
+        )
         if self.use_rd_y:
             y = random_observation_ore_maps(x).to(self.device)
 
@@ -294,7 +324,8 @@ class LitDCGAN2d(LitModel2d):
 
             return {"d_loss": d_loss, "gradient_penalty": gradient_penalty}
         elif self.w_gp_loss == "w":
-            d_loss = -torch.mean(d_output_real) + torch.mean(d_output_fake)
+            d_loss = torch.mean(-d_output_real + d_output_fake)
+            d_loss = (F.softplus(-d_output_real) + F.softplus(d_output_fake)).mean()
             return {"d_loss": d_loss}
 
         else:
@@ -397,10 +428,10 @@ class LitDCGAN2d(LitModel2d):
     def on_train_start(self) -> None:
         os.makedirs(os.path.join(self.log_dir, "ckpts"), exist_ok=True)
 
-    def on_train_epoch_end(self) -> None:
-        self.trainer.save_checkpoint(
-            os.path.join(self.log_dir, "ckpts", f"epoch_{self.current_epoch}")
-        )
+    # def on_train_epoch_end(self) -> None:
+    #     self.trainer.save_checkpoint(
+    #         os.path.join(self.log_dir, "ckpts", f"epoch_{self.current_epoch}")
+    #     )
 
 
 class LitDDPM2d(LitModel2d):

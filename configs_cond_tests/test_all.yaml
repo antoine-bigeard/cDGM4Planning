@@ -22,10 +22,10 @@ path_confs: [
 path_output: logs/test_table3
 path_saved_tests: logs/test_table2
 
-# datamodule: 
-#   path_surfaces_h5py: null
-#   path_observations_h5py: null
-#   batch_size: 1
-#   pct_train: 0
-#   pct_val: 0
-#   pct_test: 1
+datamodule: 
+  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_test_32.hdf5
+  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_test_obs_32.hdf5
+  batch_size: 1
+  pct_train: 0
+  pct_val: 0
+  pct_test: 1

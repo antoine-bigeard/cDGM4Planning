@@ -1,4 +1,4 @@
-path_logs: [
+paths_logs: [
   logs/ore_maps_ddpm_100/version_5,
   logs/ore_maps_ddpm_250/version_5,
   logs/ore_maps_ddpm_500/version_6,

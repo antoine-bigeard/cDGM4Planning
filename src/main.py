@@ -29,7 +29,8 @@ def main(path_config):
     conf_checkpoint_callback = config.get("checkpoint_callback")
 
     seed = config["seed"]
-    torch.manual_seed(seed)
+    if seed is not None:
+        torch.manual_seed(seed)
 
     tsboard_logger = TensorBoardLogger(
         conf_ts_board["save_dir"],
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="configs_tests/gan_ore_maps_fullinject_noT.yaml",
+        default="configs_runs/gan_ore_maps_noinject.yaml",
         required=False,
     )
     parser.add_argument(

@@ -12,6 +12,7 @@ pytorch-lightning = "^1.7.7"
 h5py = "^3.7.0"
 pandas = "^1.5.0"
 seaborn = "^0.12.1"
+scipy = "^1.9.3"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -9,9 +9,9 @@ datamodule:
   batch_size: 1
   shuffle: False
   num_workers: 4
-  pct_train: 0.8
-  pct_val: 0.18
-  pct_test: 0.00004
+  pct_train: 0.9
+  pct_val: 0.08
+  pct_test: 0.02
   sequential_cond: False
   two_dimensional: True
 

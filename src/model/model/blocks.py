@@ -16,6 +16,16 @@ def l2normalize(v, eps=1e-12):
     return v / (v.norm() + eps)
 
 
+class View(nn.Module):
+    def __init__(self, shape):
+        super().__init__()
+        self.shape = shape
+
+    def forward(self, input: torch.Tensor):
+        new_shape = [input.shape[0]] + list(self.shape)
+        return input.view(*new_shape)
+
+
 def clean_padding_y(y, pad_value=-1):
     no_padding = torch.where(y[:, 0, 0] > -1)[0]
     return y[no_padding, :, :]
