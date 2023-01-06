@@ -41,21 +41,28 @@ def cond_test_model(config, datamodule, path_ckpt, n_obs, path_output):
 def main_test(path_config):
     main_test_config = read_yaml_config_file(path_config)
 
+    save = main_test_config.get("save")
     n_obs = main_test_config.get("n_obs")
     path_logs = main_test_config.get("path_logs")
-    path_confs = main_test_config.get("path_confs")
     path_output = main_test_config.get("path_output")
     path_saved_tests = main_test_config.get("path_saved_tests")
 
     update_conf_datamodule = main_test_config.get("datamodule")
-    update_conf_datamodule = {} if update_conf_datamodule is None else update_conf_datamodule
+    update_conf_datamodule = (
+        {} if update_conf_datamodule is None else update_conf_datamodule
+    )
+    update_conf_lit_model = main_test_config.get("lit_model")
+    update_conf_lit_model = (
+        {} if update_conf_lit_model is None else update_conf_lit_model
+    )
 
     os.makedirs(path_output, exist_ok=True)
     metrics_samples = []
     ground_truths = []
     y_1_idxs = []
     metrics_measures = []
-    for log, conf in zip(path_logs, path_confs):
+    for log in path_logs:
+        conf = os.path.join(log, "config.yaml")
         config = read_yaml_config_file(conf)
         ckpts = os.listdir(os.path.join(log, "checkpoints"))
 
@@ -66,6 +73,7 @@ def main_test(path_config):
 
         conf_datamodule = config.get("datamodule")
         conf_datamodule.update(update_conf_datamodule)
+        config["lit_model"].update(update_conf_lit_model)
         datamodule = MyDataModule(**conf_datamodule)
         datamodule.setup(stage="test")
 
@@ -81,14 +89,15 @@ def main_test(path_config):
                 n_obs,
                 path_exp,
             )
-            torch.save(x, os.path.join(path_exp, "x.pt"))
-            torch.save(tmp_y_1_idx, os.path.join(path_exp, "y_1_idx.pt"))
-            torch.save(
-                tmp_metrics_samples, os.path.join(path_exp, "metrics_samples.pt")
-            )
-            torch.save(
-                tmp_metrics_measures, os.path.join(path_exp, "metrics_measures.pt")
-            )
+            if save:
+                torch.save(x, os.path.join(path_exp, "x.pt"))
+                torch.save(tmp_y_1_idx, os.path.join(path_exp, "y_1_idx.pt"))
+                torch.save(
+                    tmp_metrics_samples, os.path.join(path_exp, "metrics_samples.pt")
+                )
+                torch.save(
+                    tmp_metrics_measures, os.path.join(path_exp, "metrics_measures.pt")
+                )
 
         else:
             path_exp = os.path.join(path_saved_tests, config["name_experiment"])
@@ -107,7 +116,7 @@ def main_test(path_config):
     for name_metric in metrics_samples[0].keys():
         fig, axs = plt.subplots(
             len(n_obs),
-            len(path_confs) + 1,
+            len(path_logs) + 1,
             figsize=(50, 50),
         )
         fig.suptitle(f"Results for {name_metric} metric")
@@ -118,7 +127,7 @@ def main_test(path_config):
                 y_1_idxs[0],
                 i,
             )
-            for j in range(1, len(path_confs) + 1):
+            for j in range(1, len(path_logs) + 1):
                 plot_fig_2D(
                     axs[i][j],
                     metrics_samples[j - 1][name_metric][i],

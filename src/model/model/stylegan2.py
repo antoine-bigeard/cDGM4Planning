@@ -263,8 +263,8 @@ class MappingNetwork(torch.nn.Module):
         if self.z_dim > 0:
             x = normalize_2nd_moment(z.to(torch.float32))
         if self.c_dim > 0:
-            y = normalize_2nd_moment(self.embed(c.to(torch.float32)))
-            x = torch.cat([x, y], dim=1) if x is not None else y
+            # y = normalize_2nd_moment(self.embed(c.to(torch.float32)))
+            x = torch.cat([x, c], dim=1) if x is not None else y
 
         # Main layers.
         for idx in range(self.num_layers):
@@ -625,9 +625,12 @@ class Generator(torch.nn.Module):
         w_dim,  # Intermediate latent (W) dimensionality.
         img_resolution,  # Output resolution.
         img_channels,  # Number of output color channels.
-        MODEL,  # MODEL config required for applying infoGAN
+        MODEL={"info_type": "N/A"},  # MODEL config required for applying infoGAN
         mapping_kwargs={},  # Arguments for MappingNetwork.
         synthesis_kwargs={},  # Arguments for SynthesisNetwork.
+        latent_1d=None,
+        encoding_layer=None,
+        latent_dim=None,
     ):
         super().__init__()
         self.z_dim = z_dim
@@ -638,15 +641,15 @@ class Generator(torch.nn.Module):
         self.img_channels = img_channels
 
         z_extra_dim = 0
-        if self.MODEL.info_type in ["discrete", "both"]:
-            z_extra_dim += (
-                self.MODEL.info_num_discrete_c * self.MODEL.info_dim_discrete_c
-            )
-        if self.MODEL.info_type in ["continuous", "both"]:
-            z_extra_dim += self.MODEL.info_num_conti_c
+        # if self.MODEL.info_type in ["discrete", "both"]:
+        #     z_extra_dim += (
+        #         self.MODEL.info_num_discrete_c * self.MODEL.info_dim_discrete_c
+        #     )
+        # if self.MODEL.info_type in ["continuous", "both"]:
+        #     z_extra_dim += self.MODEL.info_num_conti_c
 
-        if self.MODEL.info_type != "N/A":
-            self.z_dim += z_extra_dim
+        # if self.MODEL.info_type != "N/A":
+        #     self.z_dim += z_extra_dim
 
         self.synthesis = SynthesisNetwork(
             w_dim=w_dim,
@@ -920,7 +923,8 @@ class Discriminator(torch.nn.Module):
         block_kwargs={},  # Arguments for DiscriminatorBlock.
         mapping_kwargs={},  # Arguments for MappingNetwork.
         epilogue_kwargs={},  # Arguments for DiscriminatorEpilogue.
-        MODEL=None,  # needed to check options for infoGAN
+        MODEL={"info_type": "both"},  # needed to check options for infoGAN
+        encoding_layer=None,
     ):
         super().__init__()
         self.c_dim = c_dim
@@ -1052,21 +1056,21 @@ class Discriminator(torch.nn.Module):
                 raise NotImplementedError
 
         # Q head network for infoGAN
-        if self.MODEL.info_type in ["discrete", "both"]:
-            out_features = (
-                self.MODEL.info_num_discrete_c * self.MODEL.info_dim_discrete_c
-            )
-            self.info_discrete_linear = FullyConnectedLayer(
-                in_features=channels_dict[4], out_features=out_features, bias=False
-            )
-        if self.MODEL.info_type in ["continuous", "both"]:
-            out_features = self.MODEL.info_num_conti_c
-            self.info_conti_mu_linear = FullyConnectedLayer(
-                in_features=channels_dict[4], out_features=out_features, bias=False
-            )
-            self.info_conti_var_linear = FullyConnectedLayer(
-                in_features=channels_dict[4], out_features=out_features, bias=False
-            )
+        # if self.MODEL.info_type in ["discrete", "both"]:
+        #     out_features = (
+        #         self.MODEL.info_num_discrete_c * self.MODEL.info_dim_discrete_c
+        #     )
+        #     self.info_discrete_linear = FullyConnectedLayer(
+        #         in_features=channels_dict[4], out_features=out_features, bias=False
+        #     )
+        # if self.MODEL.info_type in ["continuous", "both"]:
+        #     out_features = self.MODEL.info_num_conti_c
+        #     self.info_conti_mu_linear = FullyConnectedLayer(
+        #         in_features=channels_dict[4], out_features=out_features, bias=False
+        #     )
+        #     self.info_conti_var_linear = FullyConnectedLayer(
+        #         in_features=channels_dict[4], out_features=out_features, bias=False
+        #     )
 
     def forward(
         self, img, label, eval=False, adc_fake=False, update_emas=False, **block_kwargs
@@ -1096,11 +1100,11 @@ class Discriminator(torch.nn.Module):
         )
 
         # forward pass through InfoGAN Q head
-        if self.MODEL.info_type in ["discrete", "both"]:
-            info_discrete_c_logits = self.info_discrete_linear(h)
-        if self.MODEL.info_type in ["continuous", "both"]:
-            info_conti_mu = self.info_conti_mu_linear(h)
-            info_conti_var = torch.exp(self.info_conti_var_linear(h))
+        # if self.MODEL.info_type in ["discrete", "both"]:
+        #     info_discrete_c_logits = self.info_discrete_linear(h)
+        # if self.MODEL.info_type in ["continuous", "both"]:
+        #     info_conti_mu = self.info_conti_mu_linear(h)
+        #     info_conti_var = torch.exp(self.info_conti_var_linear(h))
 
         # class conditioning
         if self.d_cond_mtd == "AC":
@@ -1146,17 +1150,18 @@ class Discriminator(torch.nn.Module):
                 if self.normalize_d_embed:
                     mi_embed = F.normalize(mi_embed, dim=1)
                     mi_proxy = F.normalize(mi_proxy, dim=1)
-        return {
-            "h": h,
-            "adv_output": adv_output,
-            "embed": embed,
-            "proxy": proxy,
-            "cls_output": cls_output,
-            "label": label,
-            "mi_embed": mi_embed,
-            "mi_proxy": mi_proxy,
-            "mi_cls_output": mi_cls_output,
-            "info_discrete_c_logits": info_discrete_c_logits,
-            "info_conti_mu": info_conti_mu,
-            "info_conti_var": info_conti_var,
-        }
+        return adv_output
+        # return {
+        #     "h": h,
+        #     "adv_output": adv_output,
+        #     "embed": embed,
+        #     "proxy": proxy,
+        #     "cls_output": cls_output,
+        #     "label": label,
+        #     "mi_embed": mi_embed,
+        #     "mi_proxy": mi_proxy,
+        #     "mi_cls_output": mi_cls_output,
+        #     "info_discrete_c_logits": info_discrete_c_logits,
+        #     "info_conti_mu": info_conti_mu,
+        #     "info_conti_var": info_conti_var,
+        # }

@@ -14,6 +14,17 @@ import random as rd
 
 # from src.model.lit_model.metrics import *
 
+import collections.abc
+
+
+def update(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
+
 
 def read_yaml_config_file(path_config: str):
     with open(path_config) as conf:

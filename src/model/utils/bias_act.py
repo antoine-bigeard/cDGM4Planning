@@ -11,9 +11,9 @@
 import os
 import numpy as np
 import torch
-import utils.style_ops.dnnlib as dnnlib
+import src.model.utils.dnnlib as dnnlib
 
-from .. import custom_ops
+from src.model.utils import custom_ops
 
 # ----------------------------------------------------------------------------
 

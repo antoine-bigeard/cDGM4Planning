@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 
 from src.data.datamodule.datamodule import MyDataModule
-from src.utils import read_yaml_config_file
+from src.utils import read_yaml_config_file, update
 from src.main_utils import instantiate_lit_model
 
 import argparse
@@ -17,9 +17,8 @@ import yaml
 import torch
 
 
-def main(path_config):
+def main(config):
 
-    config = read_yaml_config_file(path_config)
     mode = config["mode"]
     checkpoint_path = config.get("checkpoint_path")
     conf_datamodule = config.get("datamodule")
@@ -131,7 +130,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="configs_runs/gan_ore_maps_noinject.yaml",
+        default="configs_runs/style-gan_ore_maps.yaml",
         required=False,
     )
     parser.add_argument(
@@ -143,7 +142,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args.path_config)
+    config = read_yaml_config_file(args.path_config)
+
+    main(config)
     # if args.parallel:
     #     pool = multiprocessing.Pool()
     #     outs = pool.map(main, args.path_config)
