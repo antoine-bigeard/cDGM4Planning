@@ -1,4 +1,4 @@
-name_experiment: ore_maps_gan_fullinject_w_linear
+name_experiment: ore_maps_gan_fullinject_noT
 seed: 1234
 mode: fit
 
@@ -78,8 +78,8 @@ lit_model:
       False,
       False,
     ]
-  g_lr: 0.0002
-  d_lr: 0.0002
+  g_lr: 0.00002
+  d_lr: 0.00002
   b1: 0.5
   b2: 0.999
   validation_x_shape: [10, 1, 32, 32]
@@ -101,7 +101,7 @@ trainer:
   # learning_rate: 0.0001
 
 tensorboard_logs:
-  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs/gans_inject
+  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs
   name: test_res_inject
 
 checkpoint_callback: {}
@@ -110,4 +110,4 @@ checkpoint_callback: {}
   # save_last: True
   # filename: best-checkpoint
 
-checkpoint_path: null #logs/ore_maps_gan_fullinject_noT/version_0/checkpoints/epoch=49-step=62500.ckpt
+checkpoint_path: null
