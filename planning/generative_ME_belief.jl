@@ -1,5 +1,7 @@
 using PyCall
 using Images
+using POMDPs
+using Random
 
 mutable struct GenerativeMEBelief
     model
@@ -11,6 +13,7 @@ mutable struct GenerativeMEBelief
         py"""
         import sys
         import torch
+        torch.cuda.set_device(1)
         sys.path.insert(0, $DGM)
         from src.utils import read_yaml_config_file
         from src.main_utils import instantiate_lit_model
