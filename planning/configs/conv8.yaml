@@ -11,3 +11,5 @@ tree_queries: 1000
 exploration_constant: 100.0
 k_action: 2.0
 alpha_action: 0.25
+k_state: 2.0
+alpha_state: 0.25

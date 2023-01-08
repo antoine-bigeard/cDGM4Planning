@@ -40,3 +40,8 @@ for rfile in result_files
 end
 
 plot(plots..., layout=(length(result_files), 1), size=(1200, 400*length(result_files)))
+
+
+## Checkout trees
+# trees = [D3Tree(h.action_info[:tree]) for h in result]
+# inchrome(trees[1])

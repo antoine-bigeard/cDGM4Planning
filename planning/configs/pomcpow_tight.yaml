@@ -1,12 +1,14 @@
 trial_type: pomcpow
-name: POMCPOW
+name: POMCPOW_tight
 savefolder: planning/results
-Ntrials: 100
+Ntrials: 1
 Nparticles: 10000
+
+ABC_param: 0.01
 
 tree_queries: 1000
 exploration_constant: 100.0
 k_action: 2.0
 alpha_action: 0.25
 k_observation: 2.0
-alpha_observation: 0.1
+alpha_observation: 0.25

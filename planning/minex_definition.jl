@@ -7,7 +7,7 @@ using Parameters
 @with_kw struct MinExPOMDP <: POMDP{Any, Any, Any} 
     ore_threshold = 0.7
     extraction_cost = 150
-    drill_cost = 0.1
+    drill_cost = 1.0
     drill_locations = [(i,j) for i=5:5:45 for j=5:5:45]
     terminal_actions = [:abandon, :mine]
     σ_abc = 0.1

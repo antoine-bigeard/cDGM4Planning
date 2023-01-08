@@ -2,6 +2,20 @@ using PyCall
 using Images
 using POMDPs
 using Random
+using MCTS
+
+function DGM_value_est(mdp, s, depth)
+    print("estimating value...")
+    if isterminal(mdp, s)
+        println("terminal so returning 0")
+        return 0.0
+    end
+    Nsamples = 10
+    samples = rand(Random.GLOBAL_RNG, s; Nsamples)
+    v = max(0, mean([extraction_reward(mdp.pomdp, samples[:,:,i]) for i=1:Nsamples]))
+    println("value: ", v)
+    return v
+end
 
 function initialize_DGM_python(path)
     py"""
@@ -26,6 +40,11 @@ mutable struct GenerativeMEBelief
         model = model.load_from_checkpoint(checkpoint).to(py"torch".device("cuda"))
         return new(model, pomdp, false, Dict(),input_size)
     end
+end
+
+# Used to display the state in the tree
+function MCTS.node_tag(s::GenerativeMEBelief)
+    return "drills = ($(s.drill_observations))"
 end
 
 struct GenerativeMEBeliefUpdater <: POMDPs.Updater 

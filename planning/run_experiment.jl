@@ -20,7 +20,8 @@ config = YAML.load_file(ARGS[1])
 name = config["name"] 
 
 # Construct the POMDP
-m = MinExPOMDP()
+σ_abc = haskey(config, "ABC_param") ? config["ABC_param"] : 0.1
+m = MinExPOMDP(;σ_abc)
 
 # Load the ore maps
 s_all = h5read("planning/data/ore_maps.hdf5", "X")
@@ -46,13 +47,14 @@ elseif config["trial_type"] == "pomcpow"
     b0 = ParticleCollection(particle_set(Nparticles))
     up = BootstrapFilter(m, Nparticles)
     solver = POMCPOWSolver(next_action=MinExActionSampler(), 
-                           estimate_value=0,
+                           estimate_value=(pomdp, s, h, steps) -> isterminal(pomdp, s) ? 0 : max(0, extraction_reward(pomdp, s)),
                            criterion=POMCPOW.MaxUCB(config["exploration_constant"]),
                            tree_queries=config["tree_queries"],
                            k_action=config["k_action"],
                            alpha_action=config["alpha_action"],
                            k_observation=config["k_observation"],
-                           alpha_observation=config["alpha_observation"]
+                           alpha_observation=config["alpha_observation"],
+                           tree_in_info=true,
                           )
     policy = POMDPs.solve(solver, m)
 elseif config["trial_type"] == "DGM"
@@ -63,11 +65,14 @@ elseif config["trial_type"] == "DGM"
     b0 = initialize_belief(up, nothing)
     bmdp = GenerativeBeliefMDP{typeof(m), typeof(up), typeof(b0), actiontype(m)}(m, up)
     solver = DPWSolver(next_action=MinExActionSampler(), 
-                       estimate_value=0,
+                       estimate_value=DGM_value_est,
                        n_iterations=config["tree_queries"],
                        exploration_constant=config["exploration_constant"],
                        k_action=config["k_action"],
                        alpha_action=config["alpha_action"],
+                       k_state=config["k_state"],
+                       alpha_state=config["alpha_state"],
+                       tree_in_info=true,
                        )
     policy = POMDPs.solve(solver, bmdp)
 end
