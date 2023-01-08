@@ -58,8 +58,9 @@ class LargeGeneratorInject(nn.Module):
         )
 
     def inference(self, y: torch.Tensor, latent_dim=20):
-        z = torch.randn(y.shape[0], latent_dim).cuda()
-        return self.forward(z, y)
+        with torch.inference_mode():
+            z = torch.randn(y.shape[0], latent_dim).cuda()
+            return self.forward(z, y)
 
     def forward(self, z: torch.Tensor, y: torch.Tensor):
         y = y.cuda()

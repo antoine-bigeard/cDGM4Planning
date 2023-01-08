@@ -1,0 +1,13 @@
+trial_type: DGM
+name: CONV8
+savefolder: planning/results
+Ntrials: 100
+DGM_path: /home/acorso/Workspace/DeepGenerativeModelsCCS
+
+model_config: planning/models/config_conv8.yaml
+model_ckpt: planning/models/halfinject_conv8.ckpt
+
+tree_queries: 1000
+exploration_constant: 100.0
+k_action: 2.0
+alpha_action: 0.25

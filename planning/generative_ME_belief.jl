@@ -3,41 +3,43 @@ using Images
 using POMDPs
 using Random
 
+function initialize_DGM_python(path)
+    py"""
+    import sys
+    import torch
+    sys.path.insert(0, $path)
+    from src.utils import read_yaml_config_file
+    from src.main_utils import instantiate_lit_model
+    """
+end
+
+
 mutable struct GenerativeMEBelief
     model
     pomdp
     terminal
     drill_observations
     input_size
-    function GenerativeMEBelief(DGM, config, checkpoint, pomdp, input_size)
-        py"""
-        import sys
-        import torch
-        torch.cuda.set_device(1)
-        sys.path.insert(0, $DGM)
-        from src.utils import read_yaml_config_file
-        from src.main_utils import instantiate_lit_model
-        config = read_yaml_config_file($config)
-        lit_model = instantiate_lit_model(config)
-        lit_model = lit_model.load_from_checkpoint($checkpoint).to(torch.device('cuda'))
-        """
-        return new(py"lit_model", pomdp, false, Dict(),input_size)
+    function GenerativeMEBelief(config_fn, checkpoint, pomdp, input_size)
+        config = py"read_yaml_config_file"(config_fn)
+        model = py"instantiate_lit_model"(config)
+        model = model.load_from_checkpoint(checkpoint).to(py"torch".device("cuda"))
+        return new(model, pomdp, false, Dict(),input_size)
     end
 end
 
 struct GenerativeMEBeliefUpdater <: POMDPs.Updater 
-    DGM
-    config 
-    checkpoint
+    config_fn
+    checkpoint_fn
     pomdp
     input_size
 end
 
 function POMDPs.initialize_belief(up::GenerativeMEBeliefUpdater, d)
-    return GenerativeMEBelief(up.DGM, up.config, up.checkpoint, up.pomdp, up.input_size)
+    return GenerativeMEBelief(up.config_fn, up.checkpoint_fn, up.pomdp, up.input_size)
 end
 
-POMDPs.isterminal(bmdp, b::GenerativeMEBelief) = b.terminal
+POMDPs.isterminal(bmdp::GenerativeBeliefMDP, b::GenerativeMEBelief) = b.terminal
 
 function POMDPs.update(up::GenerativeMEBeliefUpdater, b, a, o)
     bp = deepcopy(b)
@@ -50,19 +52,20 @@ function POMDPs.update(up::GenerativeMEBeliefUpdater, b, a, o)
     return bp
 end
 
+function tocoords(a, size)
+    return ceil.(Int, a .* (32,32) ./ size)
+end
+
 function Base.rand(rng::AbstractRNG, b::GenerativeMEBelief; Nsamples=1)
-    input = zeros(Nsamples, 2, b.input_size...)
+    @assert !b.terminal
+    input = zeros(Nsamples, 2, 32, 32)
     for (drill_loc, obs) in b.drill_observations
-        input[:, 1, drill_loc...] .= 1
-        input[:, 2, drill_loc...] .= obs
+        loc = tocoords(drill_loc, b.input_size)
+        input[:, 1, loc...] .= 1
+        input[:, 2, loc...] .= obs
     end
-    input = py"torch.tensor($(input)).cuda()"
-    samples = b.model.inference(input).cpu().numpy()
-    states = []
-    for i in 1:Nsamples
-        ore_map = Float64.(imresize(samples[i,1,:,:], b.pomdp.grid_dim[1:2]))
-        ore_map = reshape(ore_map, size(ore_map)...,1)
-        push!(states, MEState(ore_map, nothing, Float64[], b.rock_obs, b.stopped, b.decided))
-    end
-    Nsamples == 1 ? states[1] : states
+    input = py"torch".tensor(input).cuda()
+    samples = b.model.inference_model(input).cpu().numpy()
+    ret = Nsamples == 1 ? samples[1, 1, :,:] : permutedims(samples[:, 1, :, :], (2,3,1))
+    imresize(ret, (50,50))
 end

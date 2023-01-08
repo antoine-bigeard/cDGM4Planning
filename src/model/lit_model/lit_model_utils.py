@@ -65,7 +65,7 @@ def validate(val_loader, model, diffusion):
     model.eval()
     bpd = []
     mse = []
-    with torch.no_grad():
+    with torch.inference_mode():
         for i, (x, y) in enumerate(iter(val_loader)):
             x = x
             metrics = bpd_fn(model, diffusion, x)
