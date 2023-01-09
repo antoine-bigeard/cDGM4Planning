@@ -17,8 +17,7 @@ include("minex_definition.jl")
 include("voi_policy.jl")
 
 # load the param file
-# config = YAML.load_file(ARGS[1])
-config = YAML.load_file("planning/configs/pf_voi_mid.yaml")
+config = YAML.load_file(ARGS[1])
 name = config["name"] 
 
 if occursin("DGM", config["trial_type"])
@@ -96,13 +95,11 @@ end
 
 # Run the trials
 results = []
-# for (i,s0) in enumerate(s0_trial)
-i=4
-s0 = s0_trial[i]
-println("Running trial $i of $name...")
-push!(results, simulate(HistoryRecorder(max_steps=length(actions(m))), m, policy, up, b0, s0))
+for (i,s0) in enumerate(s0_trial)
+    println("Running trial $i of $name...")
+    push!(results, simulate(HistoryRecorder(max_steps=length(actions(m))), m, policy, up, b0, s0))
 
-# Save all results after every iteration
-println("Saving trial $i of $name...")
-JLD2.save("$(config["savefolder"])/results_$name.jld2", Dict("results" => results)) 
-# end
+    # Save all results after every iteration
+    println("Saving trial $i of $name...")
+    JLD2.save("$(config["savefolder"])/results_$name.jld2", Dict("results" => results)) 
+end
