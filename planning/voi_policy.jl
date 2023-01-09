@@ -32,8 +32,8 @@ function POMDPs.action(pol::VOIPolicy, b)
             for o in os
                 bp = update(pol.up, b, a, o)
                 sps = rand(bp, pol.Nsamples)
-                rs = [@gen(:r)(pol.m, sp, :mine) for sp in sps]
-                push!(o_vals, max(0, mean(rs)))
+                rps = [@gen(:r)(pol.m, sp, :mine) for sp in sps]
+                push!(o_vals, max(0, mean(rps)))
             end
             push!(vals, mean(rs .+ o_vals))
         end
