@@ -1,7 +1,7 @@
-trial_type: DGM
+trial_type: DGM_tree_search
 name: CONV1
 savefolder: planning/results
-Ntrials: 100
+Ntrials: 10
 DGM_path: /home/acorso/Workspace/DeepGenerativeModelsCCS
 
 model_config: planning/models/config_conv.yaml

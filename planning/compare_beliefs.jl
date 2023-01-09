@@ -80,6 +80,21 @@ up_ddpm500, b0_ddpm500 = gen_DGM_belief("planning/models/ddpm_ore_maps_500.yaml"
 up_conv1, b0_conv1 = gen_DGM_belief("planning/models/config_conv.yaml", "planning/models/halfinject_conv.ckpt")
 up_conv8, b0_conv8 = gen_DGM_belief("planning/models/config_conv8.yaml", "planning/models/halfinject_conv8.ckpt")
 
+# Compare types:
+all_samples = [rand(Random.GLOBAL_RNG, b0_ddpm250, Nsamples=100) for i=1:3]
+samples = cat(all_samples..., dims=3)
+rewards1 = [sum(1.073*samples[:,:,i] .> 0.7)-150 for i=1:300]
+mean(rewards1)
+
+particle_rewards = [extraction_reward(m_loose, s) for s in b0_particle_loose.particles]
+histogram(particle_rewards, alpha=0.3)
+histogram!(rewards1, alpha=0.3)
+
+
+mean(particle_rewards)
+histogram(rewards1)
+histogram!(rewards2)
+
 # Load in the pomcpow results
 results = JLD2.load("planning/results/results_POMCPOW.jld2")["results"]
 

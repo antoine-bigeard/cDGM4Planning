@@ -14,14 +14,22 @@ using Random
 using MCTS
 using ParticleFilters
 include("minex_definition.jl")
+include("voi_policy.jl")
 
 # load the param file
 config = YAML.load_file(ARGS[1])
 name = config["name"] 
 
+if occursin("DGM", config["trial_type"])
+    # Load code for generative models
+    include("generative_ME_belief.jl")
+    initialize_DGM_python(config["DGM_path"])
+    input_size=(50,50)
+end
+
 # Construct the POMDP
 σ_abc = haskey(config, "ABC_param") ? config["ABC_param"] : 0.1
-m = MinExPOMDP(;σ_abc)
+m = MinExPOMDP(;σ_abc, drill_locations = [(i,j) for i=5:10:45 for j=5:10:45])
 
 # Load the ore maps
 s_all = h5read("planning/data/ore_maps.hdf5", "X")
@@ -54,13 +62,10 @@ elseif config["trial_type"] == "pomcpow"
                            alpha_action=config["alpha_action"],
                            k_observation=config["k_observation"],
                            alpha_observation=config["alpha_observation"],
-                           tree_in_info=true,
+                           tree_in_info=false,
                           )
     policy = POMDPs.solve(solver, m)
-elseif config["trial_type"] == "DGM"
-    include("generative_ME_belief.jl")
-    initialize_DGM_python(config["DGM_path"])
-    input_size=(50,50)
+elseif config["trial_type"] == "DGM_tree_search"
     up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, input_size)
     b0 = initialize_belief(up, nothing)
     bmdp = GenerativeBeliefMDP{typeof(m), typeof(up), typeof(b0), actiontype(m)}(m, up)
@@ -75,6 +80,17 @@ elseif config["trial_type"] == "DGM"
                        tree_in_info=true,
                        )
     policy = POMDPs.solve(solver, bmdp)
+elseif config["trial_type"] == "PF_VOI"
+    Nparticles = config["Nparticles"]
+    b0 = ParticleCollection(particle_set(Nparticles))
+    up = BootstrapFilter(m, Nparticles)
+    policy = VOIPolicy(m, up, config["Nsamples_VOI"])
+elseif config["trial_type"] == "DGM_VOI"
+    up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, input_size)
+    b0 = initialize_belief(up, nothing)
+    policy = VOIPolicy(m, up, config["Nsamples_VOI"])
+else
+    error("Unrecognized trial type: ", config["trial_type"])
 end
 
 # Run the trials

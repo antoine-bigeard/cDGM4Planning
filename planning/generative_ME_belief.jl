@@ -5,16 +5,12 @@ using Random
 using MCTS
 
 function DGM_value_est(mdp, s, depth)
-    print("estimating value...")
     if isterminal(mdp, s)
-        println("terminal so returning 0")
         return 0.0
     end
     Nsamples = 10
-    samples = rand(Random.GLOBAL_RNG, s; Nsamples)
-    v = max(0, mean([extraction_reward(mdp.pomdp, samples[:,:,i]) for i=1:Nsamples]))
-    println("value: ", v)
-    return v
+    samples = rand(s, Nsamples)
+    return max(0, mean([extraction_reward(mdp.pomdp, s) for s in samples]))
 end
 
 function initialize_DGM_python(path)
@@ -75,9 +71,9 @@ function tocoords(a, size)
     return ceil.(Int, a .* (32,32) ./ size)
 end
 
-function Base.rand(rng::AbstractRNG, b::GenerativeMEBelief; Nsamples=1)
+function Base.rand(rng::AbstractRNG, b::GenerativeMEBelief, N::Int=1)
     @assert !b.terminal
-    input = zeros(Nsamples, 2, 32, 32)
+    input = zeros(N, 2, 32, 32)
     for (drill_loc, obs) in b.drill_observations
         loc = tocoords(drill_loc, b.input_size)
         input[:, 1, loc...] .= 1
@@ -85,6 +81,12 @@ function Base.rand(rng::AbstractRNG, b::GenerativeMEBelief; Nsamples=1)
     end
     input = py"torch".tensor(input).cuda()
     samples = b.model.inference_model(input).cpu().numpy()
-    ret = Nsamples == 1 ? samples[1, 1, :,:] : permutedims(samples[:, 1, :, :], (2,3,1))
-    imresize(ret, (50,50))
+    samples = permutedims(samples[:, 1, :, :], (2,3,1))
+    if N == 1
+        return 1.073f0*imresize(samples[:,:,1], (50,50))
+    else
+        return [1.073f0*imresize(samples[:,:,i], (50,50)) for i=1:N]
+    end
 end
+Base.rand(b::GenerativeMEBelief, N::Int=1) = rand(Random.GLOBAL_RNG, b, N)
+

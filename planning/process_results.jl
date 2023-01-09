@@ -11,16 +11,19 @@ m = MinExPOMDP()
 # List of results files to process
 result_files = [
     "planning/results/results_Random.jld2",
-    "planning/results/results_POMCPOW.jld2",
+    "planning/results/results_POMCPOW_Loose.jld2",
+    "planning/results/results_POMCPOW_mid.jld2",
+    "planning/results/results_POMCPOW_tight.jld2",
     "planning/results/results_CONV1.jld2",
     "planning/results/results_CONV8.jld2",
     "planning/results/results_DDPM250.jld2",
-    "planning/results/results_DDPM500.jld2",
+    # "planning/results/results_DDPM500.jld2",
 ]
 
 plots=[]
 for rfile in result_files
-    name = split(split(rfile, "_")[2], ".")[1]
+    name = split(split(rfile, "results_")[2], ".")[1]
+    println("name: ", name)
     results = JLD2.load(rfile)["results"]
 
     # Distribution of returns
@@ -43,5 +46,7 @@ plot(plots..., layout=(length(result_files), 1), size=(1200, 400*length(result_f
 
 
 ## Checkout trees
-# trees = [D3Tree(h.action_info[:tree]) for h in result]
-# inchrome(trees[1])
+# result_file = "planning/results/results_POMCPOW_Loose.jld2"
+# result = JLD2.load(result_file)["results"]
+# trees = [D3Tree(h.action_info[:tree]) for h in result[1]]
+# inchrome(trees[2])
