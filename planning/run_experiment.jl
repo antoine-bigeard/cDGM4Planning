@@ -66,7 +66,7 @@ elseif config["trial_type"] == "pomcpow"
                           )
     policy = POMDPs.solve(solver, m)
 elseif config["trial_type"] == "DGM_tree_search"
-    up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, input_size)
+    up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, (32,32)) # TODO: remove input size
     b0 = initialize_belief(up, nothing)
     bmdp = GenerativeBeliefMDP{typeof(m), typeof(up), typeof(b0), actiontype(m)}(m, up)
     solver = DPWSolver(next_action=MinExActionSampler(), 
