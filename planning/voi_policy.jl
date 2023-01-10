@@ -18,7 +18,9 @@ function POMDPs.action(pol::VOIPolicy, b)
     # Loop through each action
     as = actions(pol.m)
     for a in as
-        if a == :abandon
+        if b isa GenerativeMEBelief && a in keys(b.drill_observations) # If the action is a repeat
+            push!(vals, -10)
+        elseif a == :abandon
             push!(vals, 0)
         elseif a == :mine
             rs = [@gen(:r)(pol.m, s, a) for s in ss]

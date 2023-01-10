@@ -6,11 +6,11 @@ using HDF5
 using POMDPs
 include("minex_definition.jl")
 include("generative_ME_belief.jl")
+include("voi_policy.jl")
 initialize_DGM_python("/home/acorso/Workspace/DeepGenerativeModelsCCS")
-input_size=(50,50)
 
 # Load all of the sample states 
-s_all = h5read("planning/data/ore_maps.hdf5", "X")
+s_all = imresize(h5read("planning/data/ore_maps.hdf5", "X"), (32,32))
 
 # Load the trials states
 Ntrials = 100
@@ -50,26 +50,30 @@ end
 # Function for plotting belief stats
 function plot_samples(samples, as, os, er_gt; Nexamples=4, name)
     # Get the distribution of extractionr rewards and compare to ground truth
-    ers = [extraction_reward(m_loose, samples[:,:,i]) for i=1:size(samples, 3)]
+    ers = [extraction_reward(m_loose, s) for s in samples]
     ret_plot = histogram(ers, bins=-150:10:200, xlabel="Extraction Rewards", title=name)
     vline!([er_gt], label="Ground Truth")
 
     # Get average absolute deviation to the observation points
-    devs = [avg_abs_dev(samples[:,:,i], as, os) for i=1:size(samples, 3)]
+    devs = [avg_abs_dev(s, as, os) for s in samples]
     dev_plot = histogram(devs, bins=0:0.01:0.5, xlabel="Mean Abs Deviations")
 
-    example_images = [plot_map(samples[:,:,i], as, os) for i=1:Nexamples]
+    example_images = [plot_map(s, as, os) for s in samples[1:Nexamples]]
     plot(ret_plot, dev_plot, example_images..., layout=(Nexamples+2, 1), size=(600, 400*(Nexamples+2)))
 end
 
 # Construct the POMDP
 m_loose = MinExPOMDP(σ_abc=0.1)
+m_mid = MinExPOMDP(σ_abc=0.05)
 m_tight = MinExPOMDP(σ_abc=0.01)
 
 # Setup the particle filters
 Nparticles=10000
 up_particle_loose = BootstrapFilter(m_loose, Nparticles)
 b0_particle_loose = ParticleCollection(particle_set(Nparticles))
+
+up_particle_mid = BootstrapFilter(m_mid, Nparticles)
+b0_particle_mid = ParticleCollection(particle_set(Nparticles))
 
 up_particle_tight = BootstrapFilter(m_tight, Nparticles)
 b0_particle_tight = ParticleCollection(particle_set(Nparticles))
@@ -80,65 +84,53 @@ up_ddpm500, b0_ddpm500 = gen_DGM_belief("planning/models/ddpm_ore_maps_500.yaml"
 up_conv1, b0_conv1 = gen_DGM_belief("planning/models/config_conv.yaml", "planning/models/halfinject_conv.ckpt")
 up_conv8, b0_conv8 = gen_DGM_belief("planning/models/config_conv8.yaml", "planning/models/halfinject_conv8.ckpt")
 
-# Compare types:
-all_samples = [rand(Random.GLOBAL_RNG, b0_ddpm250, Nsamples=100) for i=1:3]
-samples = cat(all_samples..., dims=3)
-rewards1 = [sum(1.073*samples[:,:,i] .> 0.7)-150 for i=1:300]
-mean(rewards1)
+belief_representations = [
+    ["Particle-Loose", up_particle_loose, b0_particle_loose],
+    ["Particle-Mid", up_particle_mid, b0_particle_mid],
+    ["Particle-Tight", up_particle_tight, b0_particle_tight],
+    ["DDPM250", up_ddpm250, b0_ddpm250],
+    ["CONV8", up_conv8, b0_conv8]
+]
 
-particle_rewards = [extraction_reward(m_loose, s) for s in b0_particle_loose.particles]
-histogram(particle_rewards, alpha=0.3)
-histogram!(rewards1, alpha=0.3)
+# Calibrating the models types:
+# all_samples = rand(b0_ddpm250, 10)
+# rewards1 = [extraction_reward(m_loose, s) for s in all_samples]
+# mean(rewards1)
 
+# particle_rewards = [extraction_reward(m_loose, s) for s in b0_particle_loose.particles]
+# mean(particle_rewards)
 
-mean(particle_rewards)
-histogram(rewards1)
-histogram!(rewards2)
+# histogram(particle_rewards, alpha=0.3)
+# histogram!(rewards1, alpha=0.3)
 
 # Load in the pomcpow results
-results = JLD2.load("planning/results/results_POMCPOW.jld2")["results"]
+results = JLD2.load("planning/results/results_DDPM250_VOI.jld2")["results"]
 
-hist = results[2] #Get a single history
+hist = results[3] #Get a single history
 
-er = extraction_reward(m_loose, hist[1].s)
+plot_map(hist[1].s, [], [])
+savefig("gt.pdf")
+
+er = extraction_reward(m_loose, hist[3].s)
 as = [h.a for h in hist]
 os = [h.o for h in hist]
 
 cur_as = []
 cur_os = []
 
+Nsamples = 100
 for i=1:length(as)
     println("iteration: $i")
     all_plots = []
 
-    s1 = cat([rand(b0_particle_loose) for i=1:100]..., dims=3)
-    push!(all_plots, plot_samples(s1, cur_as, cur_os, er, name="Particles - Loose"))
+    for (j, (name, up, b)) in enumerate(belief_representations)
+        s = rand(b, Nsamples)
+        push!(all_plots, plot_samples(s, cur_as, cur_os, er, name=name))
+        belief_representations[j][3] = POMDPs.update(up, b, as[i], os[i])
+    end
 
-    s2 = cat([rand(b0_particle_tight) for i=1:100]..., dims=3)
-    push!(all_plots, plot_samples(s2, cur_as, cur_os, er, name="Particles - Tight"))
-
-    s3 = rand(Random.GLOBAL_RNG, b0_ddpm250, Nsamples=100)
-    push!(all_plots, plot_samples(s3, cur_as, cur_os, er, name="DDPM250"))
-
-    s4 = rand(Random.GLOBAL_RNG, b0_ddpm500, Nsamples=100)
-    push!(all_plots, plot_samples(s4, cur_as, cur_os, er, name="DDPM500"))
-
-    s5 = rand(Random.GLOBAL_RNG, b0_conv1, Nsamples=100)
-    push!(all_plots, plot_samples(s5, cur_as, cur_os, er, name="CONV1"))
-
-    s6 = rand(Random.GLOBAL_RNG, b0_conv8, Nsamples=100)
-    push!(all_plots, plot_samples(s6, cur_as, cur_os, er, name="CONV8"))
-
-    plot(all_plots..., layout=(1,length(all_plots)), size=(600*6, 400*6))
+    plot(all_plots..., layout=(1,length(all_plots)), size=(600*length(all_plots), 400*length(belief_representations)))
     savefig("belief_comparison_index_$(i-1).pdf")
-
-    ## Update the beliefs
-    b0_particle_loose = POMDPs.update(up_particle_loose, b0_particle_loose, as[i], os[i])
-    b0_particle_tight = POMDPs.update(up_particle_tight, b0_particle_tight, as[i], os[i])
-    b0_ddpm250 = POMDPs.update(up_ddpm250, b0_ddpm250, as[i], os[i])
-    b0_ddpm500 = POMDPs.update(up_ddpm500, b0_ddpm500, as[i], os[i])
-    b0_conv1 = POMDPs.update(up_conv1, b0_conv1, as[i], os[i])
-    b0_conv8 = POMDPs.update(up_conv8, b0_conv8, as[i], os[i])
 
     push!(cur_as, as[i])
     push!(cur_os, os[i])

@@ -67,25 +67,25 @@ function POMDPs.update(up::GenerativeMEBeliefUpdater, b, a, o)
     return bp
 end
 
-function tocoords(a, size)
-    return ceil.(Int, a .* (32,32) ./ size)
-end
+# function tocoords(a, size)
+#     return ceil.(Int, a .* (32,32) ./ size)
+# end
 
 function Base.rand(rng::AbstractRNG, b::GenerativeMEBelief, N::Int=1)
     @assert !b.terminal
     input = zeros(N, 2, 32, 32)
     for (drill_loc, obs) in b.drill_observations
-        loc = tocoords(drill_loc, b.input_size)
-        input[:, 1, loc...] .= 1
-        input[:, 2, loc...] .= obs
+        # loc = tocoords(drill_loc, b.input_size)
+        input[:, 1, drill_loc...] .= 1
+        input[:, 2, drill_loc...] .= obs
     end
     input = py"torch".tensor(input).cuda()
     samples = b.model.inference_model(input).cpu().numpy()
     samples = permutedims(samples[:, 1, :, :], (2,3,1))
     if N == 1
-        return 1.073f0*imresize(samples[:,:,1], (50,50))
+        return samples[:,:,1]
     else
-        return [1.073f0*imresize(samples[:,:,i], (50,50)) for i=1:N]
+        return [samples[:,:,i] for i=1:N]
     end
 end
 Base.rand(b::GenerativeMEBelief, N::Int=1) = rand(Random.GLOBAL_RNG, b, N)

@@ -13,8 +13,10 @@ using JLD2
 using Random
 using MCTS
 using ParticleFilters
+using Images
 include("minex_definition.jl")
 include("voi_policy.jl")
+include("generative_ME_belief.jl")
 
 # load the param file
 config = YAML.load_file(ARGS[1])
@@ -22,17 +24,15 @@ name = config["name"]
 
 if occursin("DGM", config["trial_type"])
     # Load code for generative models
-    include("generative_ME_belief.jl")
     initialize_DGM_python(config["DGM_path"])
-    input_size=(50,50)
 end
 
 # Construct the POMDP
 σ_abc = haskey(config, "ABC_param") ? config["ABC_param"] : 0.1
-m = MinExPOMDP(;σ_abc, drill_locations = [(i,j) for i=5:10:45 for j=5:10:45])
+m = MinExPOMDP(;σ_abc, drill_locations = [(i,j) for i=3:7:31 for j=3:7:31])
 
 # Load the ore maps
-s_all = h5read("planning/data/ore_maps.hdf5", "X")
+s_all = imresize(h5read("planning/data/ore_maps.hdf5", "X"), (32,32))
 
 # Load the trials states
 Ntrials = config["Ntrials"]

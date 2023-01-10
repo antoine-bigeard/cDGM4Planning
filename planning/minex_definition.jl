@@ -6,9 +6,9 @@ using Parameters
 ## Definition of the POMDP
 @with_kw struct MinExPOMDP <: POMDP{Any, Any, Any} 
     ore_threshold = 0.7
-    extraction_cost = 150
+    extraction_cost = 61 # for 32x32. use 150 for 50x50
     drill_cost = 1.0
-    drill_locations = [(i,j) for i=5:5:45 for j=5:5:45]
+    drill_locations = [(i,j) for i=5:5:30 for j=5:5:30]
     terminal_actions = [:abandon, :mine]
     σ_abc = 0.1
     γ=0.999
@@ -72,9 +72,17 @@ function POMCPOW.next_action(o::MinExActionSampler, problem, b, h)
         return :mine
     else # 3+ visit, try drilling
         if problem isa MinExPOMDP
-            return rand(problem.drill_locations)
+            if b isa GenerativeMEBelief
+                return rand(filter(x -> !(x in keys(b.drill_observations)), problem.drill_locations))
+            else
+                return rand(problem.drill_locations)
+            end
         elseif problem isa GenerativeBeliefMDP
-            return rand(problem.pomdp.drill_locations)
+            if b isa GenerativeMEBelief
+                return rand(filter(x -> !(x in keys(b.drill_observations)), problem.pomdp.drill_locations))
+            else
+                return rand(problem.pomdp.drill_locations)
+            end
         else
             error("Didn't recognize problem type")
         end
