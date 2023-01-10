@@ -1,0 +1,27 @@
+diff --git a/src/criteria.jl b/src/criteria.jl
+index 5eecf86..7f16202 100644
+--- a/src/criteria.jl
++++ b/src/criteria.jl
+@@ -12,6 +12,9 @@ function select_best(crit::MaxUCB, h_node::POWTreeObsNode, rng)
+     ltn = log(tree.total_n[h])
+     for node in tree.tried[h]
+         n = tree.n[node]
++        if tree.a_labels[node] == :abandon && n > 0
++            continue
++        end
+         if isinf(tree.v[node])
+             criterion_value = tree.v[node]
+         elseif n == 0
+diff --git a/src/solver2.jl b/src/solver2.jl
+index aed965e..051db84 100644
+--- a/src/solver2.jl
++++ b/src/solver2.jl
+@@ -46,7 +46,7 @@ function simulate(pomcp::POMCPOWPlanner, h_node::POWTreeObsNode{B,A,O}, s::S, d)
+     a = tree.a_labels[best_node]
+ 
+     new_node = false
+-    if tree.n_a_children[best_node] <= sol.k_observation*(tree.n[best_node]^sol.alpha_observation)
++    if a==:mine || (tree.n_a_children[best_node] <= sol.k_observation*(tree.n[best_node]^sol.alpha_observation))
+ 
+         sp, o, r = @gen(:sp, :o, :r)(pomcp.problem, s, a, sol.rng)
+ 

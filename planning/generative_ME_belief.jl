@@ -29,7 +29,7 @@ mutable struct GenerativeMEBelief
     pomdp
     terminal
     drill_observations
-    input_size
+    input_size # TODO: Remove
     function GenerativeMEBelief(config_fn, checkpoint, pomdp, input_size)
         config = py"read_yaml_config_file"(config_fn)
         model = py"instantiate_lit_model"(config)
@@ -47,11 +47,11 @@ struct GenerativeMEBeliefUpdater <: POMDPs.Updater
     config_fn
     checkpoint_fn
     pomdp
-    input_size
+    input_size #TODO: Delete
 end
 
 function POMDPs.initialize_belief(up::GenerativeMEBeliefUpdater, d)
-    return GenerativeMEBelief(up.config_fn, up.checkpoint_fn, up.pomdp, up.input_size)
+    return GenerativeMEBelief(up.config_fn, up.checkpoint_fn, up.pomdp, up.input_size) #TODO: Delete input size
 end
 
 POMDPs.isterminal(bmdp::GenerativeBeliefMDP, b::GenerativeMEBelief) = b.terminal
