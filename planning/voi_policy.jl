@@ -3,8 +3,9 @@ using POMDPs
 struct VOIPolicy <: Policy
     m
     up
-    Nsamples
-    VOIPolicy(m, up, Nsamples=10) = new(m, up, Nsamples)
+    Nobs
+    Nsamples_est
+    VOIPolicy(m, up, Nobs=10, Nsamples_est=10) = new(m, up, Nobs, Nsamples_est)
 end
 
 Base.rand(b::ParticleCollection, N::Int) = [rand(b) for _=1:N]
@@ -13,7 +14,7 @@ function POMDPs.action(pol::VOIPolicy, b)
     vals = [] # Store the value for each action
 
     # Sample states to get distribution of rewards and observations
-    ss = rand(b, pol.Nsamples) 
+    ss = rand(b, pol.Nobs) 
 
     # Loop through each action
     as = actions(pol.m)
@@ -33,7 +34,7 @@ function POMDPs.action(pol::VOIPolicy, b)
             o_vals = []
             for o in os
                 bp = update(pol.up, b, a, o)
-                sps = rand(bp, pol.Nsamples)
+                sps = rand(bp, pol.Nsamples_est)
                 rps = [@gen(:r)(pol.m, sp, :mine) for sp in sps]
                 push!(o_vals, max(0, mean(rps)))
             end

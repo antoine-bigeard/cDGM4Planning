@@ -9,6 +9,10 @@ include("generative_ME_belief.jl")
 include("voi_policy.jl")
 initialize_DGM_python("/home/acorso/Workspace/DeepGenerativeModelsCCS")
 
+up, b = gen_DGM_belief("planning/models/ddpm_ore_maps_250.yaml", "planning/models/ddpm250.ckpt")
+
+rand(b, 10)
+
 # Load all of the sample states 
 s_all = imresize(h5read("planning/data/ore_maps.hdf5", "X"), (32,32))
 

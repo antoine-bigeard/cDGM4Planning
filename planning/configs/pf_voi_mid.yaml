@@ -1,7 +1,8 @@
 trial_type: PF_VOI
 name: PF_VOI_Mid
 savefolder: planning/results
-Ntrials: 10
+Ntrials: 100
 Nparticles: 10000
 ABC_param: 0.05
-Nsamples_VOI: 10
+Nobs_VOI: 50
+Nsamples_est_VOI: 10

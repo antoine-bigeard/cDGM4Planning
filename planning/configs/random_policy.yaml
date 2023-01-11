@@ -1,4 +1,4 @@
 trial_type: random
 name: Random
 savefolder: planning/results
-Ntrials: 10
+Ntrials: 100

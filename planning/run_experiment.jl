@@ -84,11 +84,11 @@ elseif config["trial_type"] == "PF_VOI"
     Nparticles = config["Nparticles"]
     b0 = ParticleCollection(particle_set(Nparticles))
     up = BootstrapFilter(m, Nparticles)
-    policy = VOIPolicy(m, up, config["Nsamples_VOI"])
+    policy = VOIPolicy(m, up, config["Nobs_VOI"], config["Nsamples_est_VOI"])
 elseif config["trial_type"] == "DGM_VOI"
-    up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, input_size)
+    up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, (32,32))
     b0 = initialize_belief(up, nothing)
-    policy = VOIPolicy(m, up, config["Nsamples_VOI"])
+    policy = VOIPolicy(m, up, config["Nobs_VOI"], config["Nsamples_est_VOI"])
 else
     error("Unrecognized trial type: ", config["trial_type"])
 end
