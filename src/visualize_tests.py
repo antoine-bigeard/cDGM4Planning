@@ -22,6 +22,12 @@ LABELS = {
     "ore_maps_gan_fullSN_wgp": "WGP-GAN - condition injected at every layer, Spectral Norm",
     "ore_maps_gan_fullinject_noT": "WGP-GAN - condition injected at every layer, no Transposed Conv",
     "ore_maps_gan_1inject_noT": "WGP-GAN - condition injected once, no Transposed Convolution",
+    "gan_ore_maps_fullinject_2conv64": "W-GAN - fullinject 2chan_wconv, latent dim 64",
+    "gan_ore_maps_fullinject_8conv64": "W-GAN - fullinject 8chan_wconv, latent dim 64",
+    "gan_ore_maps_fullinject_conv": "W-GAN - fullinject 2chan_wconv, latent dim 128",
+    "gan_ore_maps_fullinject_8conv": "W-GAN - fullinject 8chan_wconv, latent dim 128",
+    "gan_ore_maps_halfinject_conv": "W-GAN - halfinject 2chan_wconv, latent dim 128",
+    "gan_ore_maps_halfinject_8conv": "W-GAN - halfinject 8chan_wconv, latent dim 128",
 }
 
 

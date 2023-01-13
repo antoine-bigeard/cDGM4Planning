@@ -1,4 +1,4 @@
-path_logs: logs/gans_inject/gan_ore_maps_halfinject_conv/version_2
+path_logs: logs/gans_inject/gan_ore_maps_fullinject_8conv64/version_1
 
 update_conf:
   mode: test
@@ -12,4 +12,4 @@ update_conf:
     pct_test: 0.02
 
   trainer:
-    devices: [3]
+    devices: [2]

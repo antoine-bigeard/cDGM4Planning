@@ -4,17 +4,21 @@ path_logs: [
   # logs/ore_maps_gan_2inject_wgp/version_0,
   # logs/ore_maps_gan_fullinject_noT/version_0,
   # logs/gans_inject/ore_maps_gan_fullinject_linear_w_autolr/version_0,
-  logs/gans_inject/gan_ore_maps_fullinject_conv/version_0,
-  logs/gans_inject/gan_ore_maps_fullinject_w_lowlr/version_0,
+  # logs/gans_inject/gan_ore_maps_fullinject_conv/version_0,
+  # logs/gans_inject/gan_ore_maps_fullinject_w_lowlr/version_0,
   logs/gans_inject/gan_ore_maps_halfinject_conv/version_2,
   logs/gans_inject/gan_ore_maps_halfinject_8conv/version_0,
+  logs/gans_inject/gan_ore_maps_fullinject_2conv64/version_1,
+  logs/gans_inject/gan_ore_maps_fullinject_8conv/version_0,
+  logs/gans_inject/gan_ore_maps_fullinject_8conv64/version_1,
+  logs/gans_inject/gan_ore_maps_fullinject_conv/version_0,
   # logs/ore_maps_gan_1inject_noT/version_0,
   # logs/ore_maps_ddpm_100/version_0,
   # logs/ore_maps_ddpm_250/version_0,
   # logs/ore_maps_ddpm_500/version_0,
   # logs/ore_maps_ddpm_1000/version_0,
 ]
-path_output: logs/test7
+path_output: logs/test9
 # path_saved_tests: logs/test_table2
 
 datamodule: 
@@ -22,8 +26,8 @@ datamodule:
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
   batch_size: 1
   pct_train: 0.9
-  pct_val: 0.08
-  pct_test: 0.02
+  pct_val: 0.09
+  pct_test: 0.01
 
 lit_model:
   n_sample_for_metric: 100

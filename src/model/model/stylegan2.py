@@ -11,6 +11,7 @@ license agreement from NVIDIA CORPORATION is strictly prohibited.
 """
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
@@ -18,6 +19,8 @@ from src.model.utils import conv2d_resample
 from src.model.utils import upfirdn2d
 from src.model.utils import bias_act
 from src.model.utils import fma
+
+from src.model.model.blocks import Flatten, View
 
 
 def normalize_2nd_moment(x, dim=1, eps=1e-8):
@@ -255,6 +258,9 @@ class MappingNetwork(torch.nn.Module):
         if num_ws is not None and w_avg_beta is not None:
             self.register_buffer("w_avg", torch.zeros([w_dim]))
 
+        # self.embed_cond = nn.Sequential(Flatten(), nn.Linear(2 * 32 * 32, 32))
+        self.embed_cond = nn.Conv2d(2, 1, 3, 1, 1)
+
     def forward(
         self, z, c, truncation_psi=1, truncation_cutoff=None, update_emas=False
     ):
@@ -264,6 +270,7 @@ class MappingNetwork(torch.nn.Module):
             x = normalize_2nd_moment(z.to(torch.float32))
         if self.c_dim > 0:
             # y = normalize_2nd_moment(self.embed(c.to(torch.float32)))
+            c = self.embed_cond(c)
             x = torch.cat([x, c], dim=1) if x is not None else y
 
         # Main layers.
@@ -665,6 +672,7 @@ class Generator(torch.nn.Module):
             num_ws=self.num_ws,
             **mapping_kwargs,
         )
+        self.embed_cond = nn.Sequential(Flatten(), nn.Linear(2048, 32))
 
     def forward(
         self,
