@@ -1,0 +1,8 @@
+trial_type: PF_VOI
+name: PF_VOI_Loose
+savefolder: planning/results
+Ntrials: 100
+Nparticles: 10000
+ABC_param: 0.1
+Nobs_VOI: 50
+Nsamples_est_VOI: 10

@@ -59,7 +59,7 @@ class LitModel2d(pl.LightningModule):
         pass
 
     def test_model(self, datamodule, n_obs: list, path_output: str):
-        with torch.no_grad():
+        with torch.inference_mode():
             x = torch.stack(
                 [torch.Tensor(datamodule.test_dataset[i][0]) for i in range(len(n_obs))]
             ).to(self.device)
@@ -514,11 +514,12 @@ class LitDDPM2d(LitModel2d):
         return F.mse_loss(recon_x, x)
 
     def inference(self, conditions):
-        return self.diffusion.sample(
-            self.model,
-            labels=conditions,
-            cfg_scale=self.cfg_scale,
-        )
+        with torch.inference_mode():
+            return self.diffusion.sample(
+                self.model,
+                labels=conditions,
+                cfg_scale=self.cfg_scale,
+            )
 
     def training_step(self, batch, batch_idx):
         x, y = batch

@@ -1,0 +1,32 @@
+diff --git a/src/dpw.jl b/src/dpw.jl
+index c4822fa..d43fe8f 100644
+--- a/src/dpw.jl
++++ b/src/dpw.jl
+@@ -91,7 +91,7 @@ function simulate(dpw::DPWPlanner, snode::Int, d::Int)
+ 
+     # action progressive widening
+     if dpw.solver.enable_action_pw
+-        if length(tree.children[snode]) <= sol.k_action*tree.total_n[snode]^sol.alpha_action # criterion for new action generation
++        if length(tree.children[snode]) < 2 || length(tree.children[snode]) <= sol.k_action*tree.total_n[snode]^sol.alpha_action # criterion for new action generation
+             a = next_action(dpw.next_action, dpw.mdp, s, DPWStateNode(tree, snode)) # action generation step
+             if !sol.check_repeat_action || !haskey(tree.a_lookup, (snode, a))
+                 n0 = init_N(sol.init_N, dpw.mdp, s, a)
+@@ -117,7 +117,7 @@ function simulate(dpw::DPWPlanner, snode::Int, d::Int)
+ 
+     # state progressive widening
+     new_node = false
+-    if (dpw.solver.enable_state_pw && tree.n_a_children[sanode] <= sol.k_state*tree.n[sanode]^sol.alpha_state) || tree.n_a_children[sanode] == 0
++    if a == :mine || ((dpw.solver.enable_state_pw && tree.n_a_children[sanode] <= sol.k_state*tree.n[sanode]^sol.alpha_state) || tree.n_a_children[sanode] == 0)
+         sp, r = @gen(:sp, :r)(dpw.mdp, s, a, dpw.rng)
+ 
+         if sol.check_repeat_state && haskey(tree.s_lookup, sp)
+@@ -180,6 +180,9 @@ function best_sanode_UCB(tree::DPWTree, snode::Int, c::Float64)
+     sanode = 0
+     ltn = log(tree.total_n[snode])
+     for child in tree.children[snode]
++        if tree.a_labels[child] == :abandon && tree.n[child] > 0
++            continue
++        end
+         n = tree.n[child]
+         q = tree.q[child]
+         if (ltn <= 0 && n == 0) || c == 0.0

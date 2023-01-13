@@ -1,0 +1,14 @@
+trial_type: pomcpow
+name: POMCPOW_Mid
+savefolder: planning/results
+Ntrials: 100
+Nparticles: 10000
+
+ABC_param: 0.05
+
+tree_queries: 1000
+exploration_constant: 100.0
+k_action: 4.0
+alpha_action: 0.5
+k_observation: 2.0
+alpha_observation: 0.25

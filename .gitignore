@@ -6,6 +6,11 @@ logs/
 old_logs/
 old_logs2/
 
+planning/models
+planning/results
+
+.vscode
+
 *__pycache__*
 *__init__.py*
 *.out*

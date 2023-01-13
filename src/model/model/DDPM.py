@@ -43,7 +43,7 @@ class Diffusion:
     def sample(self, model, labels, cfg_scale=3):
         n = labels.shape[0]
         model.eval()
-        with torch.no_grad():
+        with torch.inference_mode():
             x = torch.randn((n, 1, self.surf_size)).cuda()
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
                 t = (torch.ones(n) * i).long().cuda()
