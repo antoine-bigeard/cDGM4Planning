@@ -88,18 +88,18 @@ def move_plots(path_log: str, out_dir: str) -> tuple[dict, str]:
 def main_plot(path_logs: list, out_dir: str) -> None:
     measures_dicts = []
     labels = []
-    metrics = []
+    all_metrics = []
     values_table = defaultdict(list)
     for path_log in path_logs:
         tmp_measures, tmp_label = move_plots(path_log, out_dir)
         measures_dicts.append(tmp_measures)
         labels.append(tmp_label)
         tmp_metrics = set([k[:-5] for k in tmp_measures.keys() if "mean" in k])
-        metrics.append(tmp_metrics)
+        all_metrics.append(tmp_metrics)
         values_table["model"].append(LABELS[tmp_label])
-    metrics = set.intersection(*metrics)
+    metrics = set.intersection(*all_metrics)
 
-    for metric in set.union(*metrics):
+    for metric in set.union(*all_metrics):
         for meas_dict in measures_dicts:
             if metric in meas_dict:
                 values_table[metric].append(f"{measures_dict[metric+'_mean']:.4f}")
@@ -119,7 +119,7 @@ def main_plot(path_logs: list, out_dir: str) -> None:
         ax = plt.subplot(111)
         values = []
         for measures_dict, label in zip(measures_dicts, labels):
-            if "ddpm" in path_log:
+            if "ddpm" in label:
                 color = cm_ddpm[i_ddpm]
                 i_ddpm += 1
             else:
@@ -189,5 +189,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = read_yaml_config_file(args.path_config)
-
+    os.makedirs(config["path_output"], exist_ok=True)
     main_plot(config["paths_logs"], config["path_output"])
