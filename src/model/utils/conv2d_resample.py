@@ -19,9 +19,7 @@ from src.model.utils.upfirdn2d import _get_filter_size
 
 
 def _get_weight_shape(w):
-    with misc.suppress_tracer_warnings():  # this value will be treated as a constant
-        shape = [int(sz) for sz in w.shape]
-    misc.assert_shape(w, shape)
+    shape = [int(sz) for sz in w.shape]
     return shape
 
 

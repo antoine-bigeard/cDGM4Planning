@@ -220,7 +220,7 @@ class MappingNetwork(torch.nn.Module):
         num_layers=8,  # Number of mapping layers.
         embed_features=None,  # Label embedding dimensionality, None = same as w_dim.
         layer_features=None,  # Number of intermediate features in the mapping layers, None = same as w_dim.
-        activation="lrelu",  # Activation function: "relu", "lrelu", etc.
+        activation="linear",  # Activation function: "relu", "lrelu", etc.
         lr_multiplier=0.01,  # Learning rate multiplier for the mapping layers.
         w_avg_beta=0.998,  # Decay for tracking the moving average of W during training, None = do not track.
     ):
@@ -267,7 +267,7 @@ class MappingNetwork(torch.nn.Module):
         # Embed, normalize, and concat inputs.
         x = None
         if self.z_dim > 0:
-            x = normalize_2nd_moment(z.to(torch.float32))
+            x = normalize_2nd_moment(z.to(torch.float32)).squeeze()
         if self.c_dim > 0:
             # y = normalize_2nd_moment(self.embed(c.to(torch.float32)))
             c = self.embed_cond(c)
@@ -373,13 +373,13 @@ class SynthesisLayer(torch.nn.Module):
 
         act_gain = self.act_gain * gain
         act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
-        x = bias_act.bias_act(
-            x,
-            self.bias.to(x.dtype),
-            act=self.activation,
-            gain=act_gain,
-            clamp=act_clamp,
-        )
+        # x = bias_act.bias_act(
+        #     x,
+        #     self.bias.to(x.dtype),
+        #     act=self.activation,
+        #     gain=act_gain,
+        #     clamp=act_clamp,
+        # )
         return x
 
 
@@ -429,7 +429,7 @@ class SynthesisBlock(torch.nn.Module):
         resolution,  # Resolution of this block.
         img_channels,  # Number of output color channels.
         is_last,  # Is this the last block?
-        architecture="skip",  # Architecture: "orig", "skip", "resnet".
+        architecture="orig",  # Architecture: "orig", "skip", "resnet".
         resample_filter=[
             1,
             3,

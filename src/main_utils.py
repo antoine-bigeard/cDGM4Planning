@@ -8,7 +8,10 @@ from src.model.model.DDPM import Diffusion
 from src.model.model.modules_diffusion import UNet_conditional, EMA
 from src.model.model.DDPM2d import Diffusion2d
 from src.model.model.modules_diffusion2d import UNet_conditional2d, EMA2d
-from src.model.model.stylegan2 import Generator, Discriminator
+
+# from src.model.model.stylegan2 import Generator, Discriminator
+# from src.model.model.stylegan_2_ludicrains import Generator, Discriminator
+from src.model.model.stylegan_simple import Generator, Discriminator
 
 
 def instantiate_lit_model(config, logs_folder=None) -> pl.LightningModule:

@@ -1,4 +1,4 @@
-name_experiment: stylegan_ore_maps
+name_experiment: stylegan_ore_maps_autolr
 seed: 1234
 mode: fit
 
@@ -6,7 +6,7 @@ datamodule:
   # name: MyDataModule
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  batch_size: 30
+  batch_size: 384
   shuffle: False
   num_workers: 4
   pct_train: 0.9
@@ -20,18 +20,16 @@ lit_model:
   generator: Generator
   discriminator: Discriminator
   conf_generator:
-    z_dim: 32
-    c_dim: 0
-    w_dim: 32
-    img_resolution: 32
-    img_channels: 1
-    latent_dim: 32
+    log_resolution: 5
+    d_latent: 64
+    n_features: 64
+    latent_dim: 64
   conf_discriminator:
-    c_dim: 3
-    img_resolution: 32
-    img_channels: 1
-  g_lr: 0.0002
-  d_lr: 0.0002
+    log_resolution: 5
+    n_features: 32
+    max_features: 512
+  g_lr: 0.002
+  d_lr: 0.002
   b1: 0.5
   b2: 0.999
   validation_x_shape: [10, 1, 32, 32]
@@ -42,7 +40,7 @@ lit_model:
   latent_1d: True
 
 trainer:
-  auto_lr_find: False
+  auto_lr_find: True
   min_epochs: 1
   max_epochs: 50
   fast_dev_run: False

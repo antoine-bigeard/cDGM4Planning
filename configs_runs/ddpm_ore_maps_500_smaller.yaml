@@ -28,6 +28,7 @@ lit_model:
     c_in: 3
     c_out: 1
     time_dim: 256
+    smaller: True
   ema: EMA2d
   conf_ema:
     beta: 0.995

@@ -3,8 +3,8 @@ seed: 1234
 
 datamodule:
   # name: MyDataModule
-  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModels.jl/surfaces64.hdf5
-  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModels.jl/observations64.hdf5
+  path_surfaces_h5py: /home/abigeard/DeepGenerativeModels.jl/surfaces64.hdf5
+  path_observations_h5py: /home/abigeard/DeepGenerativeModels.jl/observations64.hdf5
   batch_size: 512
   shuffle: False
   num_workers: 4

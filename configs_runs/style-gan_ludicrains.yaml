@@ -20,16 +20,12 @@ lit_model:
   generator: Generator
   discriminator: Discriminator
   conf_generator:
-    z_dim: 32
-    c_dim: 0
-    w_dim: 32
-    img_resolution: 32
-    img_channels: 1
+    image_size: 32
     latent_dim: 32
+    network_capacity: 16
   conf_discriminator:
-    c_dim: 3
-    img_resolution: 32
-    img_channels: 1
+    image_size: 32
+    network_capacity: 16
   g_lr: 0.0002
   d_lr: 0.0002
   b1: 0.5
