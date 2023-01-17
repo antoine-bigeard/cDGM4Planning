@@ -15,8 +15,12 @@ from collections import defaultdict
 
 LABELS = {
     "ore_maps_ddpm_100": "DDPM - 100",
+    "ore_maps_ddpm_150": "DDPM - 150",
+    "ore_maps_ddpm_200": "DDPM - 200",
     "ore_maps_ddpm_250": "DDPM - 250",
+    "ore_maps_ddpm_250_smaller": "DDPM - 250 smaller",
     "ore_maps_ddpm_500": "DDPM - 500",
+    "ore_maps_ddpm_500_smaller": "DDPM - 500 smaller",
     "ore_maps_ddpm_1000": "DDPM - 1000",
     "ore_maps_gan_2inject_wgp": "WGP-GAN - condition injected twice",
     "ore_maps_gan_fullSN_wgp": "WGP-GAN - condition injected at every layer, Spectral Norm",

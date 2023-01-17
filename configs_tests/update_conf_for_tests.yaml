@@ -1,4 +1,4 @@
-path_logs: logs/ore_maps_ddpm_1000/version_0
+path_logs: logs/ore_maps_ddpm_200/version_0
 
 update_conf:
   mode: test
@@ -9,7 +9,7 @@ update_conf:
     batch_size: 3
     pct_train: 0.9
     pct_val: 0.08
-    pct_test: 0.001
+    pct_test: 0.005
 
   trainer:
     devices: [3]
