@@ -4,7 +4,6 @@ include("generative_ME_belief.jl")
 
 function mc_multi_actions(pomdp, b, N_mc_actions, N_max_drills=10)
     drill_locations = undrilled_locations(pomdp, b)
-    println(drill_locations)
     drill_actions = [sample(drill_locations, rand(1:min(N_max_drills, length(drill_locations))), replace=false) for _=1:N_mc_actions]
     unique!(drill_actions)
     return [:abandon, :mine, drill_actions...]
