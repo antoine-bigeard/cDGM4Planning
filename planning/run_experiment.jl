@@ -36,13 +36,13 @@ s_all = imresize(h5read("planning/data/ore_maps.hdf5", "X"), (32,32))
 
 # Load the trials states
 Ntrials = config["Ntrials"]
-s0_trial = [s_all[:,:,i] for i in 1:Ntrials]
+s0_trial = [MinExState(s_all[:,:,i]) for i in 1:Ntrials]
 
 # Function to load the particle set if needed
 function particle_set(Nparticles)
     Random.seed!(0) # Particle set consistency
     indices = shuffle(Ntrials:size(s_all, 3))[1:Nparticles]
-    return [s_all[:,:,i] for i in indices]
+    return [MinExState(s_all[:,:,i]) for i in indices]
 end
 
 # Setup the belief, updater and policy for each type of trial
@@ -85,10 +85,19 @@ elseif config["trial_type"] == "PF_VOI"
     b0 = ParticleCollection(particle_set(Nparticles))
     up = BootstrapFilter(m, Nparticles)
     policy = VOIPolicy(m, up, config["Nobs_VOI"], config["Nsamples_est_VOI"])
+elseif config["trial_type"] == "PF_VOI_Multi"
+    Nparticles = config["Nparticles"]
+    b0 = ParticleCollection(particle_set(Nparticles))
+    up = BootstrapFilter(m, Nparticles)
+    policy = VOIMultiActionPolicy(m, up, config["Nobs_VOI"], config["Nsamples_est_VOI"], config["N_mc_actions_VOI"])
 elseif config["trial_type"] == "DGM_VOI"
     up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, (32,32))
     b0 = initialize_belief(up, nothing)
     policy = VOIPolicy(m, up, config["Nobs_VOI"], config["Nsamples_est_VOI"])
+elseif config["trial_type"] == "DGM_VOI_Multi"
+    up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, (32,32))
+    b0 = initialize_belief(up, nothing)
+    policy = VOIMultiActionPolicy(m, up, config["Nobs_VOI"], config["Nsamples_est_VOI"], config["N_mc_actions_VOI"])
 else
     error("Unrecognized trial type: ", config["trial_type"])
 end
@@ -97,7 +106,7 @@ end
 results = []
 for (i,s0) in enumerate(s0_trial)
     println("Running trial $i of $name...")
-    push!(results, simulate(HistoryRecorder(max_steps=length(actions(m))), m, policy, up, b0, s0))
+    push!(results, simulate(HistoryRecorder(), m, policy, up, b0, s0))
 
     # Save all results after every iteration
     println("Saving trial $i of $name...")
