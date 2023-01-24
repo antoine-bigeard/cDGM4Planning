@@ -46,7 +46,6 @@ for rfile in result_files
                 len += 1
             end
         end
-        println("len1: ", length(actions), " len2: ", len)
         return len
     end
     len_actions = [action_len(h) for h in results]
