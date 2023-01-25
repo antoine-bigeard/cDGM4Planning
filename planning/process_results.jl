@@ -29,14 +29,40 @@ for rfile in result_files
     p_reg = histogram(regret, xlabel="Regret", label="", title="$name Regret", xlims=(0,200))
     vline!([mean(regret)], label="mean=$(mean(regret))", linewidth=3)
 
+    #Decision Accuracy
+    optimal_decision = [r > 0 ? :mine : :abandon for r in extraction_rewards]
+    decisions = [h[end].a == :mine ? :mine : :abandon for h in results]
+    accuracy = sum(optimal_decision .== decisions) / length(optimal_decision)
+    annotate!(100, length(rets) / 5, text("Accuracy: $accuracy", 20, :center))
+
     # Number of actions taken
-    len_actions = [length(action_hist(h)) for h in results]
+    function action_len(h)
+        len = 0
+        actions = action_hist(h)
+        for a in actions
+            if a isa Vector
+                len += length(a)
+            else
+                len += 1
+            end
+        end
+        return len
+    end
+    len_actions = [action_len(h) for h in results]
     p_acts = histogram(len_actions, xlabel="No. Actions", label="", title=name)
     
     push!(plots, plot(p_ret, p_reg, p_acts, layout=(1,3)))
 end
 
 plot(plots..., layout=(length(result_files), 1), size=(1800, 400*length(result_files)))
+savefig("results.pdf")
+
+results = JLD2.load("planning/results/results_PF_VOI_Loose.jld2")["results"]
+
+Base.length(::Symbol) = 1
+as = [mean([length(a) for a in action_hist(h)]) for h in results]
+
+
 
 
 ## Checkout trees
