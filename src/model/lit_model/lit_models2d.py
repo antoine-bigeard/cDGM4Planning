@@ -15,6 +15,7 @@ from src.model.model.modules_diffusion import *
 from src.model.model.DDPM import *
 
 from src.utils import *
+from src.model.lit_model.metrics import compute_cond_dist
 
 import copy
 import json
@@ -259,12 +260,12 @@ class LitDCGAN2d(LitModel2d):
         return self.generator(z.cuda(), y.cuda())
 
     def g_criterion(self, pred, target):
-        return F.mse_loss(F.sigmoid(pred), target)
-        # return F.binary_cross_entropy(pred, target)
+        # return F.mse_loss(F.sigmoid(pred), target)
+        return F.binary_cross_entropy(F.sigmoid(pred), target)
 
     def d_criterion(self, pred, target):
-        return F.mse_loss(F.sigmoid(pred), target)
-        # return F.binary_cross_entropy(pred, target)
+        # return F.mse_loss(F.sigmoid(pred), target)
+        return F.binary_cross_entropy(F.sigmoid(pred), target)
 
     def generator_step(self, y, x):
         z = (
@@ -276,21 +277,35 @@ class LitDCGAN2d(LitModel2d):
         )
         if self.use_rd_y:
             y = random_observation_ore_maps(x).to(self.device)
+        y_1_idxs = get_idx_val_2D(y)
 
-        generated_surface = self(z, y)
+        generated_surfaces = self(z, y)
 
-        d_output = torch.squeeze(self.discriminator(generated_surface, y.cuda()))
+        d_output = torch.squeeze(self.discriminator(generated_surfaces, y.cuda()))
 
         if self.w_gp_loss in ["wgp", "w"]:
-            # g_loss = -torch.mean(d_output)
-            g_loss = F.softplus(-d_output).mean()
+            g_loss = (
+                -torch.mean(d_output)
+                # + 0.1
+                # * torch.stack(
+                #     [
+                #         compute_cond_dist(
+                #             generated_surfaces[i],
+                #             x[i],
+                #             (y_1_idxs[0][i], y_1_idxs[1][i]),
+                #         ).squeeze()
+                #         for i in range(x.shape[0])
+                #     ]
+                # ).mean()
+            )
+            # g_loss = F.softplus(-d_output).mean()
         else:
             g_loss = self.g_criterion(
                 d_output, torch.ones(x.shape[0]).to(self.device)
-            )  # + F.mse_loss(generated_surface[:, :, idxs_1], y[:, 1, idxs_1])
+            )  # + F.mse_loss(generated_surfaces[:, :, idxs_1], y[:, 1, idxs_1])
             # g_loss = d_output.mean()
 
-        return {"g_loss": g_loss, "preds": generated_surface, "condition": y}
+        return {"g_loss": g_loss, "preds": generated_surfaces, "condition": y}
 
     def discriminator_step(self, x, y):
         # Loss for the real samples
@@ -307,7 +322,7 @@ class LitDCGAN2d(LitModel2d):
         )
         if self.use_rd_y:
             y = random_observation_ore_maps(x).to(self.device)
-
+        y_1_idxs = get_idx_val_2D(y)
         generated_surfaces = self(z, y)
         d_output_fake = torch.squeeze(self.discriminator(generated_surfaces, y.cuda()))
 
@@ -325,7 +340,7 @@ class LitDCGAN2d(LitModel2d):
             return {"d_loss": d_loss, "gradient_penalty": gradient_penalty}
         elif self.w_gp_loss == "w":
             d_loss = torch.mean(-d_output_real + d_output_fake)
-            d_loss = (F.softplus(-d_output_real) + F.softplus(d_output_fake)).mean()
+            # d_loss = (F.softplus(-d_output_real) + F.softplus(d_output_fake)).mean()
             return {"d_loss": d_loss}
 
         else:
@@ -335,7 +350,7 @@ class LitDCGAN2d(LitModel2d):
             loss_fake = self.d_criterion(
                 d_output_fake, torch.zeros(x.size(0)).to(self.device)
             )
-            d_loss = loss_real + loss_fake
+            d_loss = (loss_real + loss_fake) / 2
             return {"d_loss": d_loss}
         # loss_fake = d_output.mean()
 

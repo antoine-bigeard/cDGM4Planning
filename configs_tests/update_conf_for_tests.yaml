@@ -1,4 +1,4 @@
-path_logs: logs/ore_maps_ddpm_200/version_0
+path_logs: logs/ore_maps_ddpm_500_smaller2/version_3
 
 update_conf:
   mode: test
@@ -6,10 +6,10 @@ update_conf:
   datamodule: 
     path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
     path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-    batch_size: 3
+    batch_size: 16
     pct_train: 0.9
     pct_val: 0.08
     pct_test: 0.005
 
   trainer:
-    devices: [3]
+    devices: [1]

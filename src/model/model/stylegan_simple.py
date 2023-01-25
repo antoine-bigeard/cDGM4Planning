@@ -7,6 +7,8 @@ import torch.nn.functional as F
 import torch.utils.data
 from torch import nn
 
+from src.model.model.blocks import Flatten
+
 
 class MappingNetwork(nn.Module):
     def __init__(self, features: int, n_layers: int):
@@ -100,6 +102,8 @@ class Generator(nn.Module):
 
         self.n_gen_blocks = n_gen_blocks
 
+        self.encode_cond = nn.Sequential(Flatten(), nn.Linear(2 * 32 * 32, 32))
+
     def get_noise(self, batch_size: int):
         """
         ### Generate noise
@@ -145,10 +149,13 @@ class Generator(nn.Module):
         """
 
         # Get batch size
+        y = self.encode_cond(y)
+        z = torch.cat([z.squeeze(), y], axis=1)
         w = self.mapping_network(z.squeeze())
         w = w[None, :, :].expand(self.n_gen_blocks, -1, -1)
         batch_size = w.shape[1]
         input_noise = self.get_noise(batch_size)
+        input_noise = [(None, None) for i in range(len(input_noise))]
 
         # Expand the learned constant to match batch size
         x = self.initial_constant.expand(batch_size, -1, -1, -1)
@@ -436,7 +443,7 @@ class Discriminator(nn.Module):
 
         # Layer to convert RGB image to a feature map with `n_features` number of features.
         self.from_rgb = nn.Sequential(
-            EqualizedConv2d(1, n_features, 1),
+            EqualizedConv2d(3, n_features, 1),
             nn.LeakyReLU(0.2, True),
         )
 
@@ -457,7 +464,7 @@ class Discriminator(nn.Module):
         # [Mini-batch Standard Deviation](#mini_batch_std_dev)
         self.std_dev = MiniBatchStdDev()
         # Number of features after adding the standard deviations map
-        final_features = features[-1] + 1
+        final_features = features[-1]
         # Final $3 \times 3$ convolution layer
         self.conv = EqualizedConv2d(final_features, final_features, 3)
         # Final linear layer to get the classification
@@ -469,14 +476,15 @@ class Discriminator(nn.Module):
         """
 
         # Try to normalize the image (this is totally optional, but sped up the early training a little)
-        x = x - 0.5
+        # x = x - 0.5
         # Convert from RGB
+        x = torch.cat([x, y], axis=1)
         x = self.from_rgb(x)
         # Run through the [discriminator blocks](#discriminator_block)
         x = self.blocks(x)
 
         # Calculate and append [mini-batch standard deviation](#mini_batch_std_dev)
-        x = self.std_dev(x)
+        # x = self.std_dev(x)
         # $3 \times 3$ convolution
         x = self.conv(x)
         # Flatten

@@ -32,6 +32,9 @@ LABELS = {
     "gan_ore_maps_fullinject_8conv": "W-GAN - fullinject 8chan_wconv, latent dim 128",
     "gan_ore_maps_halfinject_conv": "W-GAN - halfinject 2chan_wconv, latent dim 128",
     "gan_ore_maps_halfinject_8conv": "W-GAN - halfinject 8chan_wconv, latent dim 128",
+    "gan_ore_maps_7inject_diff_dis": "W-GAN - 7inject diff dis",
+    "gan_ore_maps_halfinject_2conv_32": "W-GAN - halfinject 2chan_wconv, latent dim 32",
+    "gan_ore_maps_halfinject_2conv_64": "W-GAN - halfinject 2chan_wconv, latent dim 64",
 }
 
 
@@ -111,7 +114,7 @@ def main_plot(path_logs: list, out_dir: str) -> None:
     cm_ddpm = pl.cm.Reds(
         np.linspace(0.5, 1, len([path for path in path_logs if "ddpm" in path]))
     )
-    cm_gan = pl.cm.Greens(
+    cm_gan = pl.cm.plasma(
         np.linspace(0.5, 1, len([path for path in path_logs if "gan" in path]))
     )
 

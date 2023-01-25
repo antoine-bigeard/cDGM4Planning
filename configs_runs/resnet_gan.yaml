@@ -1,4 +1,4 @@
-name_experiment: stylegan_ore_maps_cond
+name_experiment: resnet_gan_no_random
 seed: 1234
 mode: fit
 
@@ -6,7 +6,7 @@ datamodule:
   # name: MyDataModule
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  batch_size: 384
+  batch_size: 512
   shuffle: False
   num_workers: 4
   pct_train: 0.9
@@ -17,23 +17,21 @@ datamodule:
 
 lit_model_type: LitDCGAN2d
 lit_model:
-  generator: Generator
-  discriminator: Discriminator
+  generator: GeneratorResNet
+  discriminator: DiscriminatorResNet
   conf_generator:
-    log_resolution: 5
-    d_latent: 64
-    n_features: 64
+    in_channels: 3
+    out_channels: 1
+    n_residual_blocks: 16
     latent_dim: 32
   conf_discriminator:
-    log_resolution: 5
-    n_features: 32
-    max_features: 512
-  g_lr: 0.002
-  d_lr: 0.002
+    input_shape: [3, 32, 32]
+  g_lr: 0.0002
+  d_lr: 0.0002
   b1: 0.5
   b2: 0.999
   validation_x_shape: [10, 1, 32, 32]
-  use_rd_y: True
+  use_rd_y: False
   batch_size: 150
   wasserstein_gp_loss: w
   n_sample_for_metric: 100
@@ -46,7 +44,7 @@ trainer:
   fast_dev_run: False
   log_every_n_steps: 10
   accelerator: gpu
-  devices: [1]
+  devices: [0]
   # flush_logs_every_n_steps: 10
   # learning_rate: 0.0001
 

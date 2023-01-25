@@ -130,7 +130,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="configs_runs/style-gan_simple.yaml",
+        default="configs_runs/gan_ore_maps_w_full_inject.yaml",
         required=False,
     )
     parser.add_argument(

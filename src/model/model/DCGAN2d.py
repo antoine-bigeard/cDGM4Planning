@@ -47,12 +47,12 @@ class LargeGeneratorInject2d(nn.Module):
                 nn.Linear(self.latent_dim, 32 * 32 * 32),
                 View([32, 32, 32]),
                 nn.LeakyReLU(0.2, inplace=False),
-                nn.Conv2d(32, 128, 3, 1, 1),
-                nn.BatchNorm2d(128),
+                nn.Conv2d(32, 256, 3, 1, 1),
+                nn.BatchNorm2d(256),
             )
             if self.latent_1d
             else nn.Sequential(
-                nn.Conv2d(1, 128, 3, 1, 1),
+                nn.Conv2d(1, 256, 3, 1, 1),
                 nn.LeakyReLU(0.2, inplace=False),
             )
         )

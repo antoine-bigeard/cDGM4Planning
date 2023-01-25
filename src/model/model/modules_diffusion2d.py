@@ -154,8 +154,8 @@ class UNet_conditional2d(nn.Module):
         if not self.smaller:
             self.up1 = Up(512, 128)
             self.sa4 = SelfAttention(128, 8)
-        self.up2 = Up(256, 64)
-        self.sa5 = SelfAttention(64, 16)
+        self.up2 = Up(256, 128)
+        self.sa5 = SelfAttention(128, 16)
         self.up3 = Up(128, 64)
         self.sa6 = SelfAttention(64, 32)
         self.outc = nn.Conv2d(64, c_out, kernel_size=1)
@@ -215,7 +215,7 @@ class UNet_conditional2d(nn.Module):
         else:
             x = self.up2(x3, x2, t)
         x = self.sa5(x)
-        x = self.up3(x, x1, t)
+        x = self.up3(x2, x1, t)
         x = self.sa6(x)
         output = self.outc(x)
         return output

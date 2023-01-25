@@ -31,8 +31,10 @@ class Diffusion2d:
         return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
 
     def noise_images(self, x, t):
-        sqrt_alpha_hat = torch.sqrt(self.alpha_hat[t])[:, None, None, None].to(x.device)
-        sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t])[
+        sqrt_alpha_hat = torch.sqrt(self.alpha_hat[t.cpu()])[:, None, None, None].to(
+            x.device
+        )
+        sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t.cpu()])[
             :, None, None, None
         ].to(x.device)
         epsilon = torch.randn_like(x)
@@ -55,9 +57,9 @@ class Diffusion2d:
                     predicted_noise = torch.lerp(
                         uncond_predicted_noise, predicted_noise, cfg_scale
                     )
-                alpha = self.alpha[t][:, None, None, None].cuda()
-                alpha_hat = self.alpha_hat[t][:, None, None, None].cuda()
-                beta = self.beta[t][:, None, None, None].cuda()
+                alpha = self.alpha[t.cpu()][:, None, None, None].cuda()
+                alpha_hat = self.alpha_hat[t.cpu()][:, None, None, None].cuda()
+                beta = self.beta[t.cpu()][:, None, None, None].cuda()
                 if i > 1:
                     noise = torch.randn_like(x)
                 else:

@@ -1,4 +1,4 @@
-name_experiment: ore_maps_ddpm_250_smaller
+name_experiment: ore_maps_ddpm_250_smaller2
 seed: 1234
 mode: fit
 
@@ -6,7 +6,7 @@ datamodule:
   # name: MyDataModule
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  batch_size: 100
+  batch_size: 512
   shuffle: False
   num_workers: 4
   pct_train: 0.9
@@ -48,7 +48,7 @@ trainer:
   max_epochs: 50
   fast_dev_run: False
   accelerator: gpu
-  devices: [2]
+  devices: [0]
   log_every_n_steps: 10
 
 tensorboard_logs:

@@ -1,4 +1,4 @@
-name_experiment: gan_ore_maps_fullinject_8conv_128
+name_experiment: gan_ore_maps_test_archi_now
 seed: 1234
 mode: fit
 
@@ -22,24 +22,24 @@ lit_model:
   conf_generator:
     latent_dim: 32
     layers: [
-      {Cv2d: [128, 128, [4,4], [2,2], [1,1]], BN2d: [128], LR: null, UpSample: [null, 2, bilinear]},
-      {Cv2d: [128, 256, [3,3], [1,1], [1,1]], BN2d: [256], LR: null, D: [0.25,], UpSample: [null, 2, bilinear]},
-      {Cv2d: [256, 512, [4,4], [2,2], [1,1]], BN2d: [512], LR: null},
-      {Cv2d: [512, 512, [3,3], [1,1], [1,1]], LR: null},
-      {Cv2d: [512, 256, [3,3], [1,1], [1,1]], LR: null},
+      # {Cv2d: [128, 128, [4,4], [2,2], [1,1]], BN2d: [128], LR: null, UpSample: [null, 2, bilinear]},
+      # {Cv2d: [128, 256, [3,3], [1,1], [1,1]], BN2d: [256], LR: null, D: [0.25,], UpSample: [null, 2, bilinear]},
+      # {Cv2d: [256, 512, [4,4], [2,2], [1,1]], BN2d: [512], LR: null},
+      # {Cv2d: [512, 512, [3,3], [1,1], [1,1]], LR: null},
+      # {Cv2d: [512, 256, [3,3], [1,1], [1,1]], LR: null},
       {Cv2d: [256, 256, [3,3], [1,1], [1,1]], LR: null},
       {Cv2d: [256, 128, [3,3], [1,1], [1,1]], LR: null},
       {Cv2d: [128, 1, [3,3], [1,1], [1,1]]},
     ]
     injections: [
-      [True, 8, 1],
-      [True, 8, 1],
-      [True, 8, 2],
-      [True, 8, 1],
-      [True, 8, 1],
-      [True, 8, 1],
-      [True, 8, 1],
-      [True, 8, 1],
+      # [True, 128, 1],
+      # [False, 8, 1],
+      # [False, 8, 2],
+      # [True, 512, 1],
+      # [False, 8, 1],
+      [True, 256, 1],
+      [False, 8, 1],
+      [False, 2, 1],
     ]
   conf_discriminator:
     layers: [
@@ -47,18 +47,12 @@ lit_model:
       {LR: [0.2], D: [0.4]},
       {Cv2d: [128, 256, 3, 2, 1]},
       {LR: [0.2], D: [0.4], LR: [0.2]},
-      {Cv2d: [256, 256, 3, 1, 1]},
-      {LR: [0.2], D: [0.4], LR: [0.2]},
-      {Cv2d: [256, 128, 3, 1, 1]},
-      {LR: [0.2], D: [0.4], LR: [0.2]},
-      {Cv2d: [128, 128, 3, 1, 1]},
-      {LR: [0.2], D: [0.4], LR: [0.2]},
-      {Cv2d: [128, 64, 3, 1, 1]},
-      {LR: [0.2], D: [0.4], LR: [0.2]},
-      {Cv2d: [64, 32, 3, 1, 1]},
+      {Cv2d: [256, 512, 3, 2, 1]},
+      # {LR: [0.2], D: [0.4], LR: [0.2]},
+      # {Cv2d: [512, 512, 3, 2, 1]},
       {D: [0.4]},
       {F: null},
-      {L: [2048, 1]},
+      {L: [8192, 1]},
     ]
     spectral_norm: [
       False,
@@ -85,7 +79,7 @@ lit_model:
   validation_x_shape: [10, 1, 32, 32]
   use_rd_y: True
   batch_size: 150
-  wasserstein_gp_loss: w
+  wasserstein_gp_loss: False
   n_sample_for_metric: 100
   latent_1d: True
 
@@ -96,7 +90,7 @@ trainer:
   fast_dev_run: False
   log_every_n_steps: 10
   accelerator: gpu
-  devices: [0]
+  devices: [1]
   # flush_logs_every_n_steps: 10
   # learning_rate: 0.0001
 
