@@ -13,13 +13,14 @@ class MyDataModule(pl.LightningDataModule):
         path_surfaces_h5py: str,
         path_observations_h5py: str,
         batch_size: int = 256,
-        shuffle: bool = True,
+        shuffle: bool = False,
         num_workers: int = 4,
         pct_train: float = 0.8,
         pct_val: float = 0.2,
         pct_test: float = 0,
         sequential_cond=False,
         two_dimensional=False,
+        shuffle_data=True,
     ):
         super().__init__()
         self.path_surfaces_h5py = path_surfaces_h5py
@@ -32,8 +33,7 @@ class MyDataModule(pl.LightningDataModule):
         self.pct_test = pct_test
         self.sequential_cond = sequential_cond
         self.two_dimensional = two_dimensional
-
-        # assert self.pct_train + self.pct_val + self.pct_test == 1
+        self.shuffle_data = shuffle_data
 
     def prepare_data(self):
         with h5py.File(self.path_surfaces_h5py, "r") as f:
@@ -43,7 +43,8 @@ class MyDataModule(pl.LightningDataModule):
             a_group_key = list(f.keys())[0]
             observations = list(f[a_group_key])
         df = pd.DataFrame({"surfaces": surfaces, "observations": observations})
-        df = df.sample(frac=1, random_state=1).reset_index(drop=True, inplace=False)
+        if self.shuffle_data:
+            df = df.sample(frac=1, random_state=1).reset_index(drop=True, inplace=False)
         total = len(df)
 
         self.train_df = df.iloc[: int(total * self.pct_train)].reset_index(

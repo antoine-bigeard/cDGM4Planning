@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--path_config",
-        default="configs_tests/update_conf_for_tests.yaml",
+        default="configs_tests/update_conf_for_tests_250_small.yaml",
         required=False,
     )
 
@@ -21,9 +21,22 @@ if __name__ == "__main__":
     config = read_yaml_config_file(args.path_config)
 
     path_logs = config.get("path_logs")
+
     update_conf = config.get("update_conf")
 
-    config_run = read_yaml_config_file(os.path.join(path_logs, "config.yaml"))
+    if os.path.exists(os.path.join(path_logs, "config.yaml")):
+        config_run = read_yaml_config_file(os.path.join(path_logs, "config.yaml"))
+    else:
+        name_config = [
+            f for f in os.listdir(os.path.join(path_logs)) if f[-5:] == ".yaml"
+        ][0]
+        config_run = read_yaml_config_file(os.path.join(path_logs, name_config))
+
+    config_run["tensorboard_logs"]["save_dir"] = os.path.join(
+        *path_logs.split("/")[:-2]
+    )
+    config_run["name_experiment"] = path_logs.split("/")[-2]
+
     config_run["checkpoint_path"] = os.path.join(
         path_logs,
         "checkpoints",

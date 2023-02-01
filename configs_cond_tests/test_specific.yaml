@@ -6,15 +6,15 @@ path_logs: [
   # logs/gans_inject/ore_maps_gan_fullinject_linear_w_autolr/version_0,
   # logs/gans_inject/gan_ore_maps_fullinject_conv/version_0,
   # logs/gans_inject/gan_ore_maps_fullinject_w_lowlr/version_0,
-  logs/gans_inject/gan_ore_maps_halfinject_conv/version_0,
+  # logs/gans_inject/gan_ore_maps_halfinject_conv/version_0,
   # logs/gans_inject/gan_ore_maps_halfinject_8conv/version_0,
   # logs/gans_inject/gan_ore_maps_fullinject_2conv64/version_1,
-  logs/gans_inject/gan_ore_maps_fullinject_8conv/version_0,
+  # logs/gans_inject/gan_ore_maps_fullinject_8conv/version_0,
   # logs/gans_inject/gan_ore_maps_fullinject_8conv64/version_1,
   # logs/gans_inject/gan_ore_maps_fullinject_conv/version_0,
-  logs/gans_inject/gan_ore_maps_7inject_diff_dis/version_5,
+  # logs/gans_inject/gan_ore_maps_7inject_diff_dis/version_5,
   # logs/ore_maps_gan_1inject_noT/version_0,
-  # logs/ore_maps_ddpm_100/version_0,
+  logs/ddpms/ddpm_ore_maps_100/version_0,
   # logs/ore_maps_ddpm_150/version_0,
   # logs/ore_maps_ddpm_200/version_0,
   # logs/ore_maps_ddpm_250/version_0,
@@ -24,16 +24,17 @@ path_logs: [
   # logs/ore_maps_ddpm_1000/version_0,
 
 ]
-path_output: logs/test_gans
+path_output: logs/tests_ddpms
 # path_saved_tests: logs/test10
 
 datamodule: 
-  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
-  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
+  path_surfaces_h5py: data/ore_maps_test_32.hdf5 #/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
+  path_observations_h5py: data/ore_maps_test_obs_32.hdf5 #/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
   batch_size: 1
-  pct_train: 0.9
-  pct_val: 0.09
-  pct_test: 0.01
+  pct_train: 0
+  pct_val: 0
+  pct_test: 1
+  shuffle_data: False
 
 lit_model:
   n_sample_for_metric: 100

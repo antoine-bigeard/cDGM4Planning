@@ -146,7 +146,12 @@ class LitModel2d(pl.LightningModule):
         x, y = batch
         y_1_idxs = get_idx_val_2D(y)
         metrics_measures, metrics_samples = measure_metrics(
-            self.inference_model, x, y, self.n_sample_for_metric, self.metrics
+            self.inference_model,
+            x,
+            y,
+            self.n_sample_for_metric,
+            self.metrics,
+            no_batch=False,
         )
         figs, paths = create_figs_best_metrics_2D(
             metrics_samples,
@@ -159,9 +164,11 @@ class LitModel2d(pl.LightningModule):
         for k, v in metrics_measures.items():
             self.metrics_measures[k] += v
         for k, ps in paths.items():
-            if k != "ground_truth":
+            if k not in ["ground_truth", "time_inference"]:
                 for i, p in enumerate(ps):
-                    self.dict_metrics_paths[k][p] = self.metrics_measures[k][i]
+                    self.dict_metrics_paths[k + "_min"][p] = self.metrics_measures[
+                        k + "_min"
+                    ][i]
 
 
 class LitDCGAN2d(LitModel2d):

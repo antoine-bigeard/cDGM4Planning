@@ -76,7 +76,7 @@ def main(config):
 
     # load trained model if checkpoutint is given
     if checkpoint_path is not None:
-        lit_model = lit_model.load_from_checkpoint(checkpoint_path)
+        lit_model = lit_model.load_from_checkpoint(checkpoint_path, **lit_model.hparams)
         lit_model.log_dir = logs_folder
 
     early_stop_callback = EarlyStopping(

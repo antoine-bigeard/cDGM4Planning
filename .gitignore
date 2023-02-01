@@ -9,6 +9,11 @@ old_logs2/
 planning/models
 planning/results*
 
+/bash_runs
+/configs_tests
+
+!configs_tests/update_conf_for_tests.yaml
+
 .vscode
 
 *__pycache__*
@@ -16,3 +21,4 @@ planning/results*
 *.out*
 nohup.out
 *logs*
+

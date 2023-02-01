@@ -62,7 +62,14 @@ def main_test(path_config):
     y_1_idxs = []
     metrics_measures = []
     for log in path_logs:
-        conf = os.path.join(log, "config.yaml")
+        # conf = os.path.join(log, "config.yaml")
+        if os.path.exists(os.path.join(log, "config.yaml")):
+            conf = os.path.join(log, "config.yaml")
+        else:
+            name_config = [
+                f for f in os.listdir(os.path.join(log)) if f[-5:] == ".yaml"
+            ][0]
+            conf = os.path.join(log, name_config)
         config = read_yaml_config_file(conf)
         ckpts = os.listdir(os.path.join(log, "checkpoints"))
 
@@ -113,7 +120,9 @@ def main_test(path_config):
         y_1_idxs.append(tmp_y_1_idx)
         metrics_measures.append(tmp_metrics_measures)
 
-    for name_metric in metrics_samples[0].keys():
+    name_metrics = [m for m in metrics_samples[0].keys() if m != "time_inference"]
+
+    for name_metric in name_metrics:
         fig, axs = plt.subplots(
             len(n_obs),
             len(path_logs) + 1,
@@ -135,7 +144,7 @@ def main_test(path_config):
                     i,
                 )
                 axs[i, j].set_title(
-                    f"{name_metric}: {metrics_measures[j - 1][name_metric][i]:.4f}",
+                    f"{name_metric}: {metrics_measures[j - 1][name_metric+'_min'][i]:.4f}",
                 )
         plt.tight_layout(pad=0, w_pad=0, h_pad=0)
         plt.savefig(os.path.join(path_output, f"table_results_{name_metric}.jpg"))
@@ -146,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config to test the models on various conditions.",
-        default="configs_cond_tests/test_all.yaml",
+        default="configs_cond_tests/test_specific.yaml",
         required=False,
     )
     args = parser.parse_args()

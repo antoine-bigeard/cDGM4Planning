@@ -98,24 +98,30 @@ def main_plot(path_logs: list, out_dir: str) -> None:
     all_metrics = []
     values_table = defaultdict(list)
     for path_log in path_logs:
+        if isinstance(path_log, list):
+            tmp_label = path_log[1]
+            path_log = path_log[0]
+        else:
+            tmp_label = path_log
         tmp_measures, tmp_label = move_plots(path_log, out_dir)
         measures_dicts.append(tmp_measures)
         labels.append(tmp_label)
-        tmp_metrics = set([k[:-5] for k in tmp_measures.keys() if "mean" in k])
+        # tmp_metrics = set([k[:-5] for k in tmp_measures.keys() if "mean" in k])
+        tmp_metrics = set([k for k in tmp_measures.keys() if "measures" not in k])
         all_metrics.append(tmp_metrics)
-        values_table["model"].append(LABELS[tmp_label])
+        values_table["model"].append(tmp_label)
     metrics = set.intersection(*all_metrics)
 
     for metric in set.union(*all_metrics):
         for meas_dict in measures_dicts:
             if metric in meas_dict:
-                values_table[metric].append(f"{measures_dict[metric+'_mean']:.4f}")
+                values_table[metric].append(f"{meas_dict[metric]:.4f}")
 
     cm_ddpm = pl.cm.Reds(
-        np.linspace(0.5, 1, len([path for path in path_logs if "ddpm" in path]))
+        np.linspace(0.5, 1, len([path for path in path_logs if "ddpm" in path[0]]))
     )
-    cm_gan = pl.cm.plasma(
-        np.linspace(0.5, 1, len([path for path in path_logs if "gan" in path]))
+    cm_gan = pl.cm.Greens(
+        np.linspace(0.5, 1, len([path for path in path_logs if "gan" in path[0]]))
     )
 
     for metric in metrics:
@@ -133,7 +139,7 @@ def main_plot(path_logs: list, out_dir: str) -> None:
                 color = cm_gan[i_gan]
                 i_gan += 1
             axis = ax.hist(
-                measures_dict[f"{metric}_measures"],
+                measures_dict[f"{metric[:-5]}_measures"],
                 bins=100,
                 density=True,
                 histtype="step",
@@ -143,7 +149,7 @@ def main_plot(path_logs: list, out_dir: str) -> None:
                 plt.plot(
                     [],
                     color=color,
-                    label=LABELS[label],
+                    label=label,
                 )[0]
             )
             poly = axis[2][0]
@@ -165,8 +171,8 @@ def main_plot(path_logs: list, out_dir: str) -> None:
             values.append(
                 [
                     label,
-                    np.mean(measures_dict["L2_measures"]),
-                    np.mean(measures_dict["dist_cond_measures"]),
+                    np.mean(measures_dict["L2_min_measures"]),
+                    np.mean(measures_dict["dist_cond_mean_measures"]),
                 ]
             )
         plt.title(f"Recall curve (CDF) for {metric} metric")
@@ -179,9 +185,9 @@ def main_plot(path_logs: list, out_dir: str) -> None:
         plt.close()
 
     with open(os.path.join(out_dir, "table.csv"), "w") as f:
-        writer = csv.DictWriter(f, fieldnames=values_table.keys())
-        writer.writeheader()
-        writer.writerow(values_table)
+        writer = csv.writer(f)
+        writer.writerow(values_table.keys())
+        writer.writerows(zip(*values_table.values()))
 
 
 if __name__ == "__main__":

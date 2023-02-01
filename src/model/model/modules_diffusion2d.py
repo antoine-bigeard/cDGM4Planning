@@ -129,19 +129,25 @@ class UNet_conditional2d(nn.Module):
         c_out=3,
         time_dim=256,
         encoding_layer=None,
-        smaller=False,
+        medium=False,
+        small=False,
     ):
         super().__init__()
-        self.smaller = smaller
+        self.medium = medium
+        self.small = small
         self.time_dim = time_dim
         self.inc = DoubleConv(c_in, 64)
-        self.down1 = Down(64, 128)
-        self.sa1 = SelfAttention(128, 16)
-        if self.smaller:
+        if self.small:
+            self.down1 = Down(64, 64)
+            self.sa1 = SelfAttention(64, 16)
+        elif self.medium:
+            self.down1 = Down(64, 128)
+            self.sa1 = SelfAttention(128, 16)
             self.down2 = Down(128, 128)
             self.sa2 = SelfAttention(128, 8)
-
         else:
+            self.down1 = Down(64, 128)
+            self.sa1 = SelfAttention(128, 16)
             self.down2 = Down(128, 256)
             self.sa2 = SelfAttention(256, 8)
             self.down3 = Down(256, 256)
@@ -151,13 +157,22 @@ class UNet_conditional2d(nn.Module):
         # self.bot2 = DoubleConv(512, 512)
         # self.bot3 = DoubleConv(512, 256)
 
-        if not self.smaller:
+        if (not self.small) and (not self.medium):
             self.up1 = Up(512, 128)
             self.sa4 = SelfAttention(128, 8)
-        self.up2 = Up(256, 128)
-        self.sa5 = SelfAttention(128, 16)
-        self.up3 = Up(128, 64)
-        self.sa6 = SelfAttention(64, 32)
+            self.up2 = Up(256, 64)
+            self.sa5 = SelfAttention(64, 16)
+            self.up3 = Up(128, 64)
+            self.sa6 = SelfAttention(64, 32)
+        elif not self.small:
+            self.up2 = Up(256, 64)
+            self.sa5 = SelfAttention(64, 16)
+            self.up3 = Up(128, 64)
+            self.sa6 = SelfAttention(64, 32)
+        else:
+            self.up3 = Up(128, 64)
+            self.sa6 = SelfAttention(64, 32)
+
         self.outc = nn.Conv2d(64, c_out, kernel_size=1)
 
         # self.label_emb = nn.Sequential(
@@ -195,12 +210,22 @@ class UNet_conditional2d(nn.Module):
         # )
 
         x = torch.cat([x, y], dim=1)
-        x1 = self.inc(x)
-        x2 = self.down1(x1, t)
-        x2 = self.sa1(x2)
-        x3 = self.down2(x2, t)
-        x3 = self.sa2(x3)
-        if not self.smaller:
+        if self.small:
+            x1 = self.inc(x)
+            x2 = self.down1(x1, t)
+            x2 = self.sa1(x2)
+        elif self.medium:
+            x1 = self.inc(x)
+            x2 = self.down1(x1, t)
+            x2 = self.sa1(x2)
+            x3 = self.down2(x2, t)
+            x3 = self.sa2(x3)
+        else:
+            x1 = self.inc(x)
+            x2 = self.down1(x1, t)
+            x2 = self.sa1(x2)
+            x3 = self.down2(x2, t)
+            x3 = self.sa2(x3)
             x4 = self.down3(x3, t)
             x4 = self.sa3(x4)
 
@@ -208,14 +233,21 @@ class UNet_conditional2d(nn.Module):
         # x4 = self.bot2(x4)
         # x4 = self.bot3(x4)
 
-        if not self.smaller:
+        if (not self.medium) and (not self.small):
             x = self.up1(x4, x3, t)
             x = self.sa4(x)
             x = self.up2(x, x2, t)
-        else:
+            x = self.sa5(x)
+            x = self.up3(x, x1, t)
+            x = self.sa6(x)
+        elif not self.small:
             x = self.up2(x3, x2, t)
-        x = self.sa5(x)
-        x = self.up3(x2, x1, t)
-        x = self.sa6(x)
+            x = self.sa5(x)
+            x = self.up3(x, x1, t)
+            x = self.sa6(x)
+        else:
+            x = self.up3(x2, x1, t)
+            x = self.sa6(x)
+
         output = self.outc(x)
         return output
