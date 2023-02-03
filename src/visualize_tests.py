@@ -10,6 +10,7 @@ import csv
 import numpy as np
 from src.utils import read_yaml_config_file
 import matplotlib.pylab as pl
+import tikzplotlib
 
 from collections import defaultdict
 
@@ -44,6 +45,11 @@ def move_plots(path_log: str, out_dir: str) -> tuple[dict, str]:
     for f in os.listdir(path_log):
         if ".png" in f:
             shutil.copyfile(os.path.join(path_log, f), out_plots_dir)
+    os.makedirs(os.path.join(out_dir, "metrics"), exist_ok=True)
+    shutil.copy(
+        os.path.join(path_log, "metrics_img_path.json"),
+        os.path.join(out_dir, "metrics", config["name_experiment"] + ".json"),
+    )
     with open(os.path.join(path_log, "metrics_img_path.json")) as f:
         paths_dict = json.load(f)
     for k, v in paths_dict["paths"].items():
@@ -178,6 +184,7 @@ def main_plot(path_logs: list, out_dir: str) -> None:
         plt.title(f"Recall curve (CDF) for {metric} metric")
         plt.xlabel(f"{metric} value")
         plt.ylabel("Percentage of images")
+        tikzplotlib.save(os.path.join(out_dir, f"cum_distrib_{metric}_dist.tex"))
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))

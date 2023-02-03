@@ -155,7 +155,7 @@ class Generator(nn.Module):
         w = w[None, :, :].expand(self.n_gen_blocks, -1, -1)
         batch_size = w.shape[1]
         input_noise = self.get_noise(batch_size)
-        input_noise = [(None, None) for i in range(len(input_noise))]
+        # input_noise = [(None, None) for i in range(len(input_noise))]
 
         # Expand the learned constant to match batch size
         x = self.initial_constant.expand(batch_size, -1, -1, -1)
@@ -601,11 +601,11 @@ class DownSample(nn.Module):
     def __init__(self):
         super().__init__()
         # Smoothing layer
-        # self.smooth = Smooth()
+        self.smooth = Smooth()
 
     def forward(self, x: torch.Tensor):
         # Smoothing or blurring
-        # x = self.smooth(x)
+        x = self.smooth(x)
         # Scaled down
         return F.interpolate(
             x, (x.shape[2] // 2, x.shape[3] // 2), mode="bilinear", align_corners=False
@@ -630,12 +630,12 @@ class UpSample(nn.Module):
             scale_factor=2, mode="bilinear", align_corners=False
         )
         # Smoothing layer
-        # self.smooth = Smooth()
+        self.smooth = Smooth()
 
     def forward(self, x: torch.Tensor):
         # Up-sample and smoothen
-        # return self.smooth(self.up_sample(x))
-        return self.up_sample(x)
+        return self.smooth(self.up_sample(x))
+        # return self.up_sample(x)
 
 
 class Smooth(nn.Module):

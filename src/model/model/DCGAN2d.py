@@ -42,21 +42,6 @@ class LargeGeneratorInject2d(nn.Module):
         self.encoding_layer = encoding_layer
         self.latent_1d = latent_1d
 
-        self.latent = (
-            nn.Sequential(
-                nn.Linear(self.latent_dim, 32 * 32 * 32),
-                View([32, 32, 32]),
-                nn.LeakyReLU(0.2, inplace=False),
-                nn.Conv2d(32, 256, 3, 1, 1),
-                nn.BatchNorm2d(256),
-            )
-            if self.latent_1d
-            else nn.Sequential(
-                nn.Conv2d(1, 256, 3, 1, 1),
-                nn.LeakyReLU(0.2, inplace=False),
-            )
-        )
-
         self.common = nn.Sequential(
             *[
                 BasicBlock(layer_params, self.injections[i])
@@ -66,6 +51,22 @@ class LargeGeneratorInject2d(nn.Module):
 
         self.trans_y = nn.Sequential(
             *[BasicBlockY2d(inject) for inject in self.injections]
+        )
+
+        # out_chan_latent =
+        self.latent = (
+            nn.Sequential(
+                nn.Linear(self.latent_dim, 32 * 32 * 32),
+                View([32, 32, 32]),
+                nn.LeakyReLU(0.2, inplace=False),
+                nn.Conv2d(32, 128, 3, 1, 1),
+                nn.BatchNorm2d(128),
+            )
+            if self.latent_1d
+            else nn.Sequential(
+                nn.Conv2d(1, 128, 3, 1, 1),
+                nn.LeakyReLU(0.2, inplace=False),
+            )
         )
 
     def inference(self, y: torch.Tensor, latent_dim=20):

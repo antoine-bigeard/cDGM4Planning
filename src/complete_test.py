@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--path_config",
-        default="configs_tests/update_conf_for_tests_250_small.yaml",
+        default="configs_tests/update_conf_for_tests_gan_half_8_128.yaml",
         required=False,
     )
 

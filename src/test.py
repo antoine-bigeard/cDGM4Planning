@@ -10,6 +10,7 @@ from src.utils import read_yaml_config_file, plot_fig_2D
 from src.main_utils import instantiate_lit_model
 import torch
 import argparse
+import tikzplotlib
 
 
 def cond_test_model(config, datamodule, path_ckpt, n_obs, path_output):
@@ -148,6 +149,7 @@ def main_test(path_config):
                 )
         plt.tight_layout(pad=0, w_pad=0, h_pad=0)
         plt.savefig(os.path.join(path_output, f"table_results_{name_metric}.jpg"))
+        tikzplotlib.save(os.path.join(path_output, f"table_results_{name_metric}.jpg"))
 
 
 if __name__ == "__main__":

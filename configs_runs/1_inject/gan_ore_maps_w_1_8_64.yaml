@@ -1,4 +1,4 @@
-name_experiment: gan_ore_maps_1_8conv_128
+name_experiment: gan_ore_maps_1_8conv_64
 seed: 1234
 mode: fit
 
@@ -6,7 +6,7 @@ datamodule:
   # name: MyDataModule
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  batch_size: 256
+  batch_size: 512
   shuffle: False
   num_workers: 4
   pct_train: 0.9
@@ -20,7 +20,7 @@ lit_model:
   generator: LargeGeneratorInject2d
   discriminator: LargerDiscriminator2d
   conf_generator:
-    latent_dim: 128
+    latent_dim: 64
     layers: [
       {Cv2d: [128, 128, [4,4], [2,2], [1,1]], BN2d: [128], LR: null, UpSample: [null, 2, bilinear]},
       {Cv2d: [128, 256, [3,3], [1,1], [1,1]], BN2d: [256], LR: null, D: [0.25,], UpSample: [null, 2, bilinear]},

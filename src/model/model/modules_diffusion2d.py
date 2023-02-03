@@ -178,7 +178,7 @@ class UNet_conditional2d(nn.Module):
         # self.label_emb = nn.Sequential(
         #     nn.Conv2d(2, 4, 3, 1, 1), nn.Flatten(), nn.Linear(4 * 64, self.time_dim)
         # )
-        self.label_emb = nn.Embedding(64, self.time_dim)
+        # self.label_emb = nn.Embedding(64, self.time_dim)
         # self.label_emb = nn.Linear(1, self.time_dim)
         # self.val_emb = nn.Linear(1, self.time_dim)
         self.encoding_layer = encoding_layer

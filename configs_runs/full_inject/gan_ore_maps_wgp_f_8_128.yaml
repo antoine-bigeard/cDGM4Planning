@@ -1,4 +1,4 @@
-name_experiment: gan_ore_maps_1_8conv_128
+name_experiment: gan_ore_maps_f_8conv_128_wgp
 seed: 1234
 mode: fit
 
@@ -6,7 +6,7 @@ datamodule:
   # name: MyDataModule
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  batch_size: 256
+  batch_size: 512
   shuffle: False
   num_workers: 4
   pct_train: 0.9
@@ -33,13 +33,13 @@ lit_model:
     ]
     injections: [
       [True, 8, 1],
-      [False, 8, 1],
-      [False, 8, 2],
-      [False, 8, 1],
-      [False, 8, 1],
-      [False, 8, 1],
-      [False, 8, 1],
-      [False, 8, 1],
+      [True, 8, 1],
+      [True, 8, 2],
+      [True, 8, 1],
+      [True, 8, 1],
+      [True, 8, 1],
+      [True, 8, 1],
+      [True, 8, 1],
     ]
   conf_discriminator:
     layers: [
@@ -85,7 +85,7 @@ lit_model:
   validation_x_shape: [10, 1, 32, 32]
   use_rd_y: True
   batch_size: 150
-  wasserstein_gp_loss: w
+  wasserstein_gp_loss: wgp
   n_sample_for_metric: 100
   latent_1d: True
 
@@ -96,7 +96,7 @@ trainer:
   fast_dev_run: False
   log_every_n_steps: 10
   accelerator: gpu
-  devices: [0]
+  devices: [1]
   # flush_logs_every_n_steps: 10
   # learning_rate: 0.0001
 

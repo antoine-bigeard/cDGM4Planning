@@ -2338,6 +2338,24 @@ files = [
 tests = ["pytest", "pytest-cov"]
 
 [[package]]
+name = "tikzplotlib"
+version = "0.10.1"
+description = "Convert matplotlib figures into TikZ/PGFPlots"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "tikzplotlib-0.10.1-py3-none-any.whl", hash = "sha256:bf0451b86fe4db40aa742f7e5a180dfaaadf57c746ddb2ab7e58a5163d8be75f"},
+    {file = "tikzplotlib-0.10.1.tar.gz", hash = "sha256:93d141342d143804fc1dfabe03e6d4e38e547cf72803bdf124615affdd56f59d"},
+]
+
+[package.dependencies]
+matplotlib = ">=1.4.0"
+numpy = "*"
+Pillow = "*"
+webcolors = "*"
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -2571,6 +2589,18 @@ files = [
 ]
 
 [[package]]
+name = "webcolors"
+version = "1.12"
+description = "A library for working with color names and color values formats defined by HTML and CSS."
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "webcolors-1.12-py3-none-any.whl", hash = "sha256:d98743d81d498a2d3eaf165196e65481f0d2ea85281463d856b1e51b09f62dce"},
+    {file = "webcolors-1.12.tar.gz", hash = "sha256:16d043d3a08fd6a1b1b7e3e9e62640d09790dce80d2bdd4792a175b35fe794a9"},
+]
+
+[[package]]
 name = "Werkzeug"
 version = "2.2.2"
 description = "The comprehensive WSGI web application library."
@@ -2679,4 +2709,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "232a11a195ec6df31bd55368dba4a76016f133f2fd5d5efb3b5558ee84d75a97"
+content-hash = "2d20e7d3409bac0a0d1b3ee1a5c4340d5e7d03fef689f667265b0b2849d3394a"

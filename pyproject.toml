@@ -18,6 +18,7 @@ einops = "^0.6.0"
 torchvision = "^0.14.1"
 kornia = "^0.6.9"
 vector-quantize-pytorch = "^0.10.14"
+tikzplotlib = "^0.10.1"
 
 
 [tool.poetry.group.dev.dependencies]
