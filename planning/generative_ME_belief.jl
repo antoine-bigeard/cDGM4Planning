@@ -33,8 +33,16 @@ mutable struct GenerativeMEBelief
     input_size # TODO: Remove
     function GenerativeMEBelief(config_fn, checkpoint, pomdp, input_size)
         config = py"read_yaml_config_file"(config_fn)
-        model = py"instantiate_lit_model"(config)
-        model = model.load_from_checkpoint(checkpoint).to(py"torch".device("cuda"))
+        # model = py"instantiate_lit_model"(config)
+        py"""
+        lit_model = instantiate_lit_model($config)
+        try:
+            lit_model = lit_model.load_from_checkpoint($checkpoint).to(torch.device("cuda"))
+        except:
+            lit_model = lit_model.load_from_checkpoint($checkpoint, **lit_model.hparams).to(torch.device("cuda"))
+        """
+        model = py"lit_model"
+        # model = model.load_from_checkpoint(checkpoint).to(py"torch".device("cuda"))
         return new(model, pomdp, false, Dict{Tuple{Int,Int},Float64}(),input_size)
     end
 end
@@ -120,7 +128,7 @@ function Base.rand(rng::AbstractRNG, b::GenerativeMEBelief, N::Int=1)
 end
 Base.rand(b::GenerativeMEBelief, N::Int=1) = rand(Random.GLOBAL_RNG, b, N)
 
-## Some tests
+# ## Some tests
 # initialize_DGM_python("/home/acorso/Workspace/DeepGenerativeModelsCCS")
 # config = "planning/models/ddpm_ore_maps_250.yaml"
 # checkpoint = "planning/models/ddpm250.ckpt"
