@@ -14,8 +14,9 @@ result_files = readdir("planning/results"; join=true)
 plots=[]
 for rfile in result_files
     name = split(split(rfile, "results_")[2], ".")[1]
-    println("name: ", name)
     results = JLD2.load(rfile)["results"]
+    results = results[1:min(length(results), 46)]
+    println("name: ", name, " num evaled: ", length(results))
 
     # Distribution of returns
     rets = [undiscounted_reward(h) for h in results]
@@ -24,6 +25,7 @@ for rfile in result_files
 
     # Regret
     extraction_rewards = [extraction_reward(m, h[1].s) for h in results]
+    println("extraction rewards: ", extraction_rewards)
     optimal_returns = max.(0, extraction_rewards)
     regret = optimal_returns .- rets 
     p_reg = histogram(regret, xlabel="Regret", label="", title="$name Regret", xlims=(0,200))

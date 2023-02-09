@@ -1,0 +1,12 @@
+trial_type: DGM_VOI_Multi
+name: DDPM500Med_VOI_Multi
+savefolder: planning/results
+Ntrials: 100
+DGM_path: /home/acorso/Workspace/DeepGenerativeModelsCCS
+
+model_config: planning/models/ddpm_ore_maps_500_medium.yaml
+model_ckpt: planning/models/ddpm_ore_maps_500_medium.ckpt
+
+Nobs_VOI: 50
+Nsamples_est_VOI: 10
+N_mc_actions_VOI: 50
