@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--path_config",
-        default="configs_tests/update_conf_for_tests_gan_half_8_128.yaml",
+        default="configs_tests/update_conf_for_tests_250_small.yaml",
         required=False,
     )
 
@@ -47,9 +47,3 @@ if __name__ == "__main__":
         update(config_run, update_conf)
 
     main(config_run)
-    # if args.parallel:
-    #     pool = multiprocessing.Pool()
-    #     outs = pool.map(main, args.path_config)
-    # else:
-    #     for path in args.path_config:
-    #         main(path)

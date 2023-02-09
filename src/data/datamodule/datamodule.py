@@ -13,7 +13,6 @@ class MyDataModule(pl.LightningDataModule):
         path_surfaces_h5py: str,
         path_observations_h5py: str,
         batch_size: int = 256,
-        shuffle: bool = False,
         num_workers: int = 4,
         pct_train: float = 0.8,
         pct_val: float = 0.2,
@@ -21,12 +20,13 @@ class MyDataModule(pl.LightningDataModule):
         sequential_cond=False,
         two_dimensional=False,
         shuffle_data=True,
+        *args,
+        **kwargs,
     ):
         super().__init__()
         self.path_surfaces_h5py = path_surfaces_h5py
         self.path_observations_h5py = path_observations_h5py
         self.batch_size = batch_size
-        self.shuffle = shuffle
         self.num_workers = num_workers
         self.pct_train = pct_train
         self.pct_val = pct_val

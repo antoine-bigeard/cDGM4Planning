@@ -153,10 +153,6 @@ class UNet_conditional2d(nn.Module):
             self.down3 = Down(256, 256)
             self.sa3 = SelfAttention(256, 4)
 
-        # self.bot1 = DoubleConv(256, 512)
-        # self.bot2 = DoubleConv(512, 512)
-        # self.bot3 = DoubleConv(512, 256)
-
         if (not self.small) and (not self.medium):
             self.up1 = Up(512, 128)
             self.sa4 = SelfAttention(128, 8)
@@ -175,12 +171,7 @@ class UNet_conditional2d(nn.Module):
 
         self.outc = nn.Conv2d(64, c_out, kernel_size=1)
 
-        # self.label_emb = nn.Sequential(
-        #     nn.Conv2d(2, 4, 3, 1, 1), nn.Flatten(), nn.Linear(4 * 64, self.time_dim)
-        # )
         self.label_emb = nn.Embedding(64, self.time_dim)
-        # self.label_emb = nn.Linear(1, self.time_dim)
-        # self.val_emb = nn.Linear(1, self.time_dim)
         self.encoding_layer = encoding_layer
 
     def pos_encoding(self, t, channels):
@@ -201,14 +192,6 @@ class UNet_conditional2d(nn.Module):
         t = t.unsqueeze(-1).type(torch.float)
         t = self.pos_encoding(t, self.time_dim)
 
-        # if y is not None:
-        #     nonzero_idx = torch.where(y[:, 0, :])
-        #     y_classes = nonzero_idx[1]
-        # t += self.label_emb(y_classes.int())
-        # t += self.label_emb(y_classes.float().unsqueeze(1)) + self.val_emb(
-        #     y[nonzero_idx[0], 1, nonzero_idx[1]].unsqueeze(1)
-        # )
-
         x = torch.cat([x, y], dim=1)
         if self.small:
             x1 = self.inc(x)
@@ -228,10 +211,6 @@ class UNet_conditional2d(nn.Module):
             x3 = self.sa2(x3)
             x4 = self.down3(x3, t)
             x4 = self.sa3(x4)
-
-        # x4 = self.bot1(x4)
-        # x4 = self.bot2(x4)
-        # x4 = self.bot3(x4)
 
         if (not self.medium) and (not self.small):
             x = self.up1(x4, x3, t)

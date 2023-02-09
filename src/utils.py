@@ -11,9 +11,6 @@ import os
 import seaborn as sns
 import random as rd
 
-
-# from src.model.lit_model.metrics import *
-
 import collections.abc
 
 
@@ -55,7 +52,6 @@ def calculate_gradient_penalty(
     discriminator, real_samples, fake_samples, labels, device
 ):
     torch.set_grad_enabled(True)
-    # Random weight term for interpolation between real and fake samples
     if real_samples.dim() == 3:
         alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1))).to(device)
     elif real_samples.dim() == 4:
@@ -63,14 +59,12 @@ def calculate_gradient_penalty(
             device
         )
     labels = torch.Tensor(labels).to(device)
-    # Get random interpolation between real and fake samples
     interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(
         True
     )
     d_interpolates = discriminator(interpolates, labels)
     fake = torch.Tensor(real_samples.shape[0], 1).fill_(1.0).to(device)
     fake.requires_grad = False
-    # Get gradient w.r.t. interpolates
     gradients = torch.autograd.grad(
         outputs=d_interpolates,
         inputs=interpolates,
@@ -98,7 +92,6 @@ def create_figs(
             plt.plot(s.squeeze().detach().cpu(), color="blue")
 
         if not sequential_cond:
-            # observation_pt = (y_1_idxs[i], validation_y[i, 1, y_1_idxs[i]].cpu())
             observation_pt = (y_1_idxs[0][i].cpu(), y_1_idxs[1][i].cpu())
             plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
         else:
@@ -109,7 +102,6 @@ def create_figs(
                         y_1_idxs[1][i][j].cpu(),
                     )
                     plt.scatter([observation_pt[0]], [observation_pt[1]], s=25, c="r")
-        # plt.ylim((-3, -3))
         if save:
             plt.savefig(os.path.join(img_dir, f"test_{i}"))
         figs.append(fig)

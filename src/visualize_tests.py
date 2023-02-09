@@ -14,30 +14,6 @@ import tikzplotlib
 
 from collections import defaultdict
 
-LABELS = {
-    "ore_maps_ddpm_100": "DDPM - 100",
-    "ore_maps_ddpm_150": "DDPM - 150",
-    "ore_maps_ddpm_200": "DDPM - 200",
-    "ore_maps_ddpm_250": "DDPM - 250",
-    "ore_maps_ddpm_250_smaller": "DDPM - 250 smaller",
-    "ore_maps_ddpm_500": "DDPM - 500",
-    "ore_maps_ddpm_500_smaller": "DDPM - 500 smaller",
-    "ore_maps_ddpm_1000": "DDPM - 1000",
-    "ore_maps_gan_2inject_wgp": "WGP-GAN - condition injected twice",
-    "ore_maps_gan_fullSN_wgp": "WGP-GAN - condition injected at every layer, Spectral Norm",
-    "ore_maps_gan_fullinject_noT": "WGP-GAN - condition injected at every layer, no Transposed Conv",
-    "ore_maps_gan_1inject_noT": "WGP-GAN - condition injected once, no Transposed Convolution",
-    "gan_ore_maps_fullinject_2conv64": "W-GAN - fullinject 2chan_wconv, latent dim 64",
-    "gan_ore_maps_fullinject_8conv64": "W-GAN - fullinject 8chan_wconv, latent dim 64",
-    "gan_ore_maps_fullinject_conv": "W-GAN - fullinject 2chan_wconv, latent dim 128",
-    "gan_ore_maps_fullinject_8conv": "W-GAN - fullinject 8chan_wconv, latent dim 128",
-    "gan_ore_maps_halfinject_conv": "W-GAN - halfinject 2chan_wconv, latent dim 128",
-    "gan_ore_maps_halfinject_8conv": "W-GAN - halfinject 8chan_wconv, latent dim 128",
-    "gan_ore_maps_7inject_diff_dis": "W-GAN - 7inject diff dis",
-    "gan_ore_maps_halfinject_2conv_32": "W-GAN - halfinject 2chan_wconv, latent dim 32",
-    "gan_ore_maps_halfinject_2conv_64": "W-GAN - halfinject 2chan_wconv, latent dim 64",
-}
-
 
 def move_plots(path_log: str, out_dir: str) -> tuple[dict, str]:
     config = read_yaml_config_file(os.path.join(path_log, "config.yaml"))
@@ -65,38 +41,6 @@ def move_plots(path_log: str, out_dir: str) -> tuple[dict, str]:
 
     return paths_dict, config["name_experiment"]
 
-    # for k1, v1 in paths_dict.items():
-    #     if k1 not in [
-    #         "L2_measures",
-    #         "dist_cond_measures",
-    #         "samples_per_sec",
-    #         "L1_measures",
-    #         "dist_cond_measures",
-    #         "mean_L1",
-    #         "mean_L2",
-    #         "mean_dist_cond",
-    #     ]:
-    #         if isinstance(v1, dict):
-    #             for k, v in v1.items():
-    #                 local_out_dir = os.path.join(
-    #                     out_dir, config["name_experiment"], f"{v:.3f}"
-    #                 )
-    #                 os.makedirs(local_out_dir, exist_ok=True)
-    #                 shutil.copy(k, local_out_dir)
-    #                 path_gt = os.path.join(
-    #                     "/".join(k.split("/")[:-1]), "ground_truth.png"
-    #                 )
-    #                 shutil.copy(path_gt, local_out_dir)
-    #         else:
-    #             local_out_dir = os.path.join(
-    #                 out_dir, config["name_experiment"], f"{v1:.3f}"
-    #             )
-    #             os.makedirs(local_out_dir, exist_ok=True)
-    #             shutil.copy(k1, local_out_dir)
-    #             path_gt = os.path.join("/".join(k1.split("/")[:-1]), "ground_truth.png")
-    #             shutil.copy(path_gt, local_out_dir)
-    # return paths_dict, config["name_experiment"]
-
 
 def main_plot(path_logs: list, out_dir: str) -> None:
     measures_dicts = []
@@ -112,7 +56,6 @@ def main_plot(path_logs: list, out_dir: str) -> None:
         tmp_measures, tmp_label = move_plots(path_log, out_dir)
         measures_dicts.append(tmp_measures)
         labels.append(tmp_label)
-        # tmp_metrics = set([k[:-5] for k in tmp_measures.keys() if "mean" in k])
         tmp_metrics = set([k for k in tmp_measures.keys() if "measures" not in k])
         all_metrics.append(tmp_metrics)
         values_table["model"].append(tmp_label)

@@ -259,25 +259,6 @@ LAYERS = {
 }
 
 
-# class BasicBlock(nn.Module):
-#     def __init__(self, layer_params, injection=None) -> None:
-#         super().__init__()
-#         layers = []
-#         for key, item in layer_params.items():
-#             if injection is not None and injection[0] and key in ["Cv", "CvT"]:
-#                 cv_param = list(item)
-#                 cv_param[0] += test0(injection[1], 2)
-#                 layers.append(
-#                     LAYERS[key](*cv_param) if cv_param is not None else LAYERS[key]()
-#                 )
-#             else:
-#                 layers.append(LAYERS[key](*item) if item is not None else LAYERS[key]())
-#         self.layers = nn.Sequential(*layers)
-
-#     def forward(self, x):
-#         return self.layers(x)
-
-
 def BasicBlock(layer_params, injection=None, spectral_norm=None):
     layers = []
     for key, item in layer_params.items():
@@ -404,31 +385,3 @@ class SpectralNorm(nn.Module):
     def forward(self, *args):
         self._update_u_v()
         return self.module.forward(*args)
-
-
-# class BasicBlockY(nn.Module):
-#     def __init__(self, injection) -> None:
-#         super().__init__()
-#         self.injection = injection
-#         if not self.injection[0] or (self.injection[1] == 0 and self.injection[2] == 1):
-#             self.trans = nn.Identity()
-#         elif self.injection[1] == 0:
-#             self.trans = (
-#                 nn.Upsample(scale_factor=self.injection[2])
-#                 if self.injection[3] > 1
-#                 else nn.AvgPool1d(
-#                     kernel_size=4, stride=1 / self.injection[2], padding=1
-#                 )
-#             )
-#         elif self.injection[1] > 0 and self.injection[2] == 1:
-#             self.trans = nn.Conv1d(2, self.injection[1], 3, 1, 1)
-#         else:
-#             if self.injection[2] > 1:
-#                 self.trans = nn.Conv1d(2, self.injection[1], 4, self.injection[2], 1)
-#             else:
-#                 self.trans = nn.ConvTranspose1d(
-#                     2, self.injection[1], 4, int(1 / self.injection[2]), 1
-#                 )
-
-#     def forward(self, x):
-#         return self.trans(x)
