@@ -1,5 +1,6 @@
 n_obs: [1, 2, 3, 5, 8, 12, 16, 20]
 path_logs: [
+  logs/stylegan_ore_maps_cond_w/version_0,
   # logs/ore_maps_gan_fullSN_wgp/version_0,
   # logs/ore_maps_gan_2inject_wgp/version_0,
   # logs/ore_maps_gan_fullinject_noT/version_0,
@@ -14,7 +15,7 @@ path_logs: [
   # logs/gans_inject/gan_ore_maps_fullinject_conv/version_0,
   # logs/gans_inject/gan_ore_maps_7inject_diff_dis/version_5,
   # logs/ore_maps_gan_1inject_noT/version_0,
-  logs/ddpms/ddpm_ore_maps_100/version_0,
+  # logs/ddpms/ddpm_ore_maps_100/version_0,
   # logs/ore_maps_ddpm_150/version_0,
   # logs/ore_maps_ddpm_200/version_0,
   # logs/ore_maps_ddpm_250/version_0,
@@ -24,7 +25,7 @@ path_logs: [
   # logs/ore_maps_ddpm_1000/version_0,
 
 ]
-path_output: logs/tests_ddpms
+path_output: logs/logs_test_style
 # path_saved_tests: logs/test10
 
 datamodule: 

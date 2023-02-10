@@ -59,6 +59,7 @@ class Generator(nn.Module):
         n_features: int = 32,
         max_features: int = 512,
         n_gen_blocks: int = 8,
+        add_noise: bool = True,
         **kwargs,
     ):
         """
@@ -69,8 +70,7 @@ class Generator(nn.Module):
         """
         super().__init__()
 
-        # Calculate the number of features for each block
-        #
+        self.add_noise = add_noise
         # Something like `[512, 512, 256, 128, 64, 32]`
         features = [
             min(max_features, n_features * (2**i))
@@ -154,8 +154,10 @@ class Generator(nn.Module):
         w = self.mapping_network(z.squeeze())
         w = w[None, :, :].expand(self.n_gen_blocks, -1, -1)
         batch_size = w.shape[1]
-        input_noise = self.get_noise(batch_size)
-        # input_noise = [(None, None) for i in range(len(input_noise))]
+        if self.add_noise:
+            input_noise = self.get_noise(batch_size)
+        else:
+            input_noise = [(None, None) for i in range(len(input_noise))]
 
         # Expand the learned constant to match batch size
         x = self.initial_constant.expand(batch_size, -1, -1, -1)
@@ -179,6 +181,11 @@ class Generator(nn.Module):
 
         # Return the final RGB image
         return rgb
+
+    def inference(self, y: torch.Tensor, latent_dim=20):
+        with torch.inference_mode():
+            z = torch.randn(y.shape[0], 1, latent_dim).cuda()
+            return self.forward(z, y)
 
 
 class GeneratorBlock(nn.Module):
@@ -601,11 +608,11 @@ class DownSample(nn.Module):
     def __init__(self):
         super().__init__()
         # Smoothing layer
-        self.smooth = Smooth()
+        # self.smooth = Smooth()
 
     def forward(self, x: torch.Tensor):
         # Smoothing or blurring
-        x = self.smooth(x)
+        # x = self.smooth(x)
         # Scaled down
         return F.interpolate(
             x, (x.shape[2] // 2, x.shape[3] // 2), mode="bilinear", align_corners=False
@@ -630,12 +637,12 @@ class UpSample(nn.Module):
             scale_factor=2, mode="bilinear", align_corners=False
         )
         # Smoothing layer
-        self.smooth = Smooth()
+        # self.smooth = Smooth()
 
     def forward(self, x: torch.Tensor):
         # Up-sample and smoothen
-        return self.smooth(self.up_sample(x))
-        # return self.up_sample(x)
+        # return self.smooth(self.up_sample(x))
+        return self.up_sample(x)
 
 
 class Smooth(nn.Module):

@@ -6,7 +6,7 @@ datamodule:
   path_surfaces_h5py: /home/abigeard/DeepGenerativeModels.jl/surfaces64.hdf5
   path_observations_h5py: /home/abigeard/DeepGenerativeModels.jl/observations64.hdf5
   batch_size: 512
-  shuffle: False
+  shuffle_data: True
   num_workers: 4
   pct_train: 0.8
   pct_val: 0.2

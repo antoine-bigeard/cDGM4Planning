@@ -14,9 +14,9 @@ class MyDataModule(pl.LightningDataModule):
         path_observations_h5py: str,
         batch_size: int = 256,
         num_workers: int = 4,
-        pct_train: float = 0.8,
-        pct_val: float = 0.2,
-        pct_test: float = 0,
+        pct_train: float = 0.9,
+        pct_val: float = 0.08,
+        pct_test: float = 0.02,
         sequential_cond=False,
         two_dimensional=False,
         shuffle_data=True,
@@ -96,7 +96,7 @@ class MyDataModule(pl.LightningDataModule):
         return DataLoader(
             self.train_dataset,
             self.batch_size,
-            shuffle=self.shuffle,
+            shuffle=False,
             num_workers=self.num_workers,
         )
 
@@ -104,7 +104,7 @@ class MyDataModule(pl.LightningDataModule):
         return DataLoader(
             self.val_dataset,
             self.batch_size,
-            shuffle=self.shuffle,
+            shuffle=False,
             num_workers=self.num_workers,
         )
 
@@ -112,13 +112,13 @@ class MyDataModule(pl.LightningDataModule):
         return DataLoader(
             self.test_dataset,
             self.batch_size,
-            shuffle=self.shuffle,
+            shuffle=False,
             num_workers=self.num_workers,
         )
 
     def predict_dataloader(self):
         return DataLoader(
             self.test_dataset,
-            shuffle=self.shuffle,
+            shuffle=False,
             num_workers=self.num_workers,
         )

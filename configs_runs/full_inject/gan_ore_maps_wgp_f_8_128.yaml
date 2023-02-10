@@ -7,7 +7,7 @@ datamodule:
   path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
   path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
   batch_size: 512
-  shuffle: False
+  shuffle_data: True
   num_workers: 4
   pct_train: 0.9
   pct_val: 0.08
