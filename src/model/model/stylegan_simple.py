@@ -60,6 +60,7 @@ class Generator(nn.Module):
         max_features: int = 512,
         n_gen_blocks: int = 8,
         add_noise: bool = True,
+        smooth=False,
         **kwargs,
     ):
         """
@@ -71,6 +72,7 @@ class Generator(nn.Module):
         super().__init__()
 
         self.add_noise = add_noise
+        self.smooth = smooth
         # Something like `[512, 512, 256, 128, 64, 32]`
         features = [
             min(max_features, n_features * (2**i))
@@ -98,7 +100,7 @@ class Generator(nn.Module):
 
         # $2 \times$ up sampling layer. The feature space is up sampled
         # at each block
-        self.up_sample = UpSample()
+        self.up_sample = UpSample(smooth=self.smooth)
 
         self.n_gen_blocks = n_gen_blocks
 
@@ -439,6 +441,7 @@ class Discriminator(nn.Module):
         log_resolution: int,
         n_features: int = 64,
         max_features: int = 512,
+        smooth=False,
         **kwargs,
     ):
         """
@@ -464,7 +467,8 @@ class Discriminator(nn.Module):
         n_blocks = len(features) - 1
         # Discriminator blocks
         blocks = [
-            DiscriminatorBlock(features[i], features[i + 1]) for i in range(n_blocks)
+            DiscriminatorBlock(features[i], features[i + 1], smooth=smooth)
+            for i in range(n_blocks)
         ]
         self.blocks = nn.Sequential(*blocks)
 
@@ -511,7 +515,7 @@ class DiscriminatorBlock(nn.Module):
     Discriminator block consists of two $3 \times 3$ convolutions with a residual connection.
     """
 
-    def __init__(self, in_features, out_features):
+    def __init__(self, in_features, out_features, smooth=False):
         """
         * `in_features` is the number of features in the input feature map
         * `out_features` is the number of features in the output feature map
@@ -519,7 +523,8 @@ class DiscriminatorBlock(nn.Module):
         super().__init__()
         # Down-sampling and $1 \times 1$ convolution layer for the residual connection
         self.residual = nn.Sequential(
-            DownSample(), EqualizedConv2d(in_features, out_features, kernel_size=1)
+            DownSample(smooth=smooth),
+            EqualizedConv2d(in_features, out_features, kernel_size=1),
         )
 
         # Two $3 \times 3$ convolutions
@@ -531,7 +536,7 @@ class DiscriminatorBlock(nn.Module):
         )
 
         # Down-sampling layer
-        self.down_sample = DownSample()
+        self.down_sample = DownSample(smooth=smooth)
 
         # Scaling factor $\frac{1}{\sqrt 2}$ after adding the residual
         self.scale = 1 / math.sqrt(2)
@@ -605,14 +610,17 @@ class DownSample(nn.Module):
      [Making Convolutional Networks Shift-Invariant Again](https://papers.labml.ai/paper/1904.11486).
     """
 
-    def __init__(self):
+    def __init__(self, smooth=False):
         super().__init__()
         # Smoothing layer
-        # self.smooth = Smooth()
+        self.smooth = smooth
+        if self.smooth:
+            self.smooth = Smooth()
 
     def forward(self, x: torch.Tensor):
         # Smoothing or blurring
-        # x = self.smooth(x)
+        if self.smooth:
+            x = self.smooth(x)
         # Scaled down
         return F.interpolate(
             x, (x.shape[2] // 2, x.shape[3] // 2), mode="bilinear", align_corners=False
@@ -630,18 +638,21 @@ class UpSample(nn.Module):
      [Making Convolutional Networks Shift-Invariant Again](https://papers.labml.ai/paper/1904.11486).
     """
 
-    def __init__(self):
+    def __init__(self, smooth=False):
         super().__init__()
         # Up-sampling layer
         self.up_sample = nn.Upsample(
             scale_factor=2, mode="bilinear", align_corners=False
         )
         # Smoothing layer
-        # self.smooth = Smooth()
+        self.smooth = smooth
+        if self.smooth:
+            self.smooth = Smooth()
 
     def forward(self, x: torch.Tensor):
         # Up-sample and smoothen
-        # return self.smooth(self.up_sample(x))
+        if self.smooth:
+            return self.smooth(self.up_sample(x))
         return self.up_sample(x)
 
 
