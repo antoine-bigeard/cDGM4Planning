@@ -60,7 +60,7 @@ class Generator(nn.Module):
         max_features: int = 512,
         n_gen_blocks: int = 8,
         add_noise: bool = True,
-        smooth=False,
+        smooth=True,
         **kwargs,
     ):
         """
@@ -441,7 +441,7 @@ class Discriminator(nn.Module):
         log_resolution: int,
         n_features: int = 64,
         max_features: int = 512,
-        smooth=False,
+        smooth=True,
         **kwargs,
     ):
         """
@@ -515,7 +515,7 @@ class DiscriminatorBlock(nn.Module):
     Discriminator block consists of two $3 \times 3$ convolutions with a residual connection.
     """
 
-    def __init__(self, in_features, out_features, smooth=False):
+    def __init__(self, in_features, out_features, smooth=True):
         """
         * `in_features` is the number of features in the input feature map
         * `out_features` is the number of features in the output feature map
@@ -610,7 +610,7 @@ class DownSample(nn.Module):
      [Making Convolutional Networks Shift-Invariant Again](https://papers.labml.ai/paper/1904.11486).
     """
 
-    def __init__(self, smooth=False):
+    def __init__(self, smooth=True):
         super().__init__()
         # Smoothing layer
         self.smooth = smooth
@@ -638,7 +638,7 @@ class UpSample(nn.Module):
      [Making Convolutional Networks Shift-Invariant Again](https://papers.labml.ai/paper/1904.11486).
     """
 
-    def __init__(self, smooth=False):
+    def __init__(self, smooth=True):
         super().__init__()
         # Up-sampling layer
         self.up_sample = nn.Upsample(
