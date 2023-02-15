@@ -36,4 +36,4 @@ paths_logs: [
   # [logs/gans_inject/gan_ore_maps_halfinject_8conv/version_5, W-GAN - halfinject conv8 latent128],
 ]
 
-path_output: logs/plots/all_ddpms3
+path_output: logs/plots/all_ddpms_test_pgf

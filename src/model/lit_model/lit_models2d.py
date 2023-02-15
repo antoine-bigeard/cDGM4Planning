@@ -587,12 +587,12 @@ class LitDDPM2d(LitModel2d):
         os.makedirs(img_dir, exist_ok=True)
         # log sampled images
         sample_surfaces = []
-        for s in range(self.validation_z.size(0)):
+        for s in range(self.validation_x.size(0)):
             sample_surfaces.append(
                 self.diffusion.sample(
                     self.model,
                     labels=torch.cat(
-                        [self.validation_y[s].unsqueeze(0)] * self.validation_z.size(0),
+                        [self.validation_y[s].unsqueeze(0)] * self.validation_x.size(0),
                         0,
                     ).cuda(),
                     cfg_scale=self.cfg_scale,

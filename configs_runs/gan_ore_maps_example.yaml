@@ -1,0 +1,108 @@
+name_experiment: ore_maps_ddpm_100           # name under which the experiment will be saved
+seed: 1234                                   # torch seed for experiments reproductibility
+mode: fit                                    # mode for the experiment: fit, test or predict
+
+datamodule:
+  path_surfaces_h5py: train_data_x.hdf5      # path to data containing the subsurfaces
+  path_observations_h5py: test_data_y.hdf5   # path to data containing the associated conditions
+  batch_size: 4                              # batch size
+  shuffle_data: True                         # True to shuffle data (before the splitting fit/test)
+  num_workers: 4                             # number of CPU workers
+  pct_train: 0.9                             # percentage of data used for training
+  pct_val: 0.08                              # percentage of data used for validation
+  pct_test: 0.02                             # percentage of data used for testing
+  two_dimensional: True                      # True if the data is two dimensional
+
+lit_model_type: LitDCGAN2d
+lit_model:
+  generator: LargeGeneratorInject2d
+  discriminator: LargerDiscriminator2d
+  conf_generator:
+    latent_dim: 128
+    layers: [
+      {Cv2d: [128, 128, [4,4], [2,2], [1,1]], BN2d: [128], LR: null, UpSample: [null, 2, bilinear]},
+      {Cv2d: [128, 256, [3,3], [1,1], [1,1]], BN2d: [256], LR: null, D: [0.25,], UpSample: [null, 2, bilinear]},
+      {Cv2d: [256, 512, [4,4], [2,2], [1,1]], BN2d: [512], LR: null},
+      {Cv2d: [512, 512, [3,3], [1,1], [1,1]], LR: null},
+      {Cv2d: [512, 256, [3,3], [1,1], [1,1]], LR: null},
+      {Cv2d: [256, 256, [3,3], [1,1], [1,1]], LR: null},
+      {Cv2d: [256, 128, [3,3], [1,1], [1,1]], LR: null},
+      {Cv2d: [128, 1, [3,3], [1,1], [1,1]]},
+    ]
+    injections: [
+      [True, 8, 1],
+      [True, 8, 1],
+      [True, 8, 2],
+      [True, 8, 1],
+      [True, 8, 1],
+      [True, 8, 1],
+      [True, 8, 1],
+      [True, 8, 1],
+    ]
+  conf_discriminator:
+    layers: [
+      {Cv2d: [3, 128, 3, 2, 1]},
+      {LR: [0.2], D: [0.4]},
+      {Cv2d: [128, 256, 3, 2, 1]},
+      {LR: [0.2], D: [0.4], LR: [0.2]},
+      {Cv2d: [256, 256, 3, 1, 1]},
+      {LR: [0.2], D: [0.4], LR: [0.2]},
+      {Cv2d: [256, 128, 3, 1, 1]},
+      {LR: [0.2], D: [0.4], LR: [0.2]},
+      {Cv2d: [128, 128, 3, 1, 1]},
+      {LR: [0.2], D: [0.4], LR: [0.2]},
+      {Cv2d: [128, 64, 3, 1, 1]},
+      {LR: [0.2], D: [0.4], LR: [0.2]},
+      {Cv2d: [64, 32, 3, 1, 1]},
+      {D: [0.4]},
+      {F: null},
+      {L: [2048, 1]},
+    ]
+    spectral_norm: [
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+      False,
+    ]
+  g_lr: 0.0002
+  d_lr: 0.0002
+  b1: 0.5
+  b2: 0.999
+  validation_x_shape: [10, 1, 32, 32]
+  use_rd_y: True
+  batch_size: 150
+  wasserstein_gp_loss: False
+  n_sample_for_metric: 100
+  latent_1d: True
+
+trainer:
+  auto_lr_find: False                        # True to let PytorchLightning find the learning rate
+  min_epochs: 1                              # minimum of epochs for training
+  max_epochs: 50                             # maximum of epochs for training
+  fast_dev_run: False                        # True to run in debug
+  accelerator: gpu
+  devices: [0]
+  log_every_n_steps: 10                      # saving frequency for the logs
+
+tensorboard_logs:
+  save_dir: logs                             # directory in which to save experiments               
+
+checkpoint_callback:                         # optional use of checkpoints, not used for GANs
+  # monitor: val/loss                        # metric to monitor
+  # mode: min                                # how to monitor the metric
+  # save_last: True                          # True to always save the last checkpoint
+  # filename: best-checkpoint                # name of the checkpoint saved using the monitor and mode
+
+checkpoint_path: logs/checkpoint.ckpt        # path to the checkpoint to use as a start for the weights

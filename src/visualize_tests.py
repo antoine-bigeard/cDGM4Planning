@@ -2,6 +2,17 @@ import sys
 import shutil
 
 sys.path.insert(0, "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS")
+import matplotlib
+
+matplotlib.use("pgf")
+matplotlib.rcParams.update(
+    {
+        "pgf.texsystem": "pdflatex",
+        "font.family": "serif",
+        "text.usetex": True,
+        "pgf.rcfonts": False,
+    }
+)
 import matplotlib.pyplot as plt
 import argparse
 import os
@@ -10,6 +21,7 @@ import csv
 import numpy as np
 from src.utils import read_yaml_config_file
 import matplotlib.pylab as pl
+
 import tikzplotlib
 
 from collections import defaultdict
@@ -132,6 +144,7 @@ def main_plot(path_logs: list, out_dir: str) -> None:
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         plt.savefig(os.path.join(out_dir, f"cum_distrib_{metric}_dist"))
+        plt.savefig(os.path.join(out_dir, f"cum_distrib_{metric}_dist") + ".pgf")
         plt.close()
 
     with open(os.path.join(out_dir, "table.csv"), "w") as f:
