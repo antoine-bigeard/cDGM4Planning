@@ -1,16 +1,11 @@
 import pytorch_lightning as pl
 
-from src.model.lit_model.lit_models import LitDCGAN, LitDDPM, LitVAE
-from src.model.model.DCGAN import LargeGeneratorInject, LargerDiscriminator
 from src.model.lit_model.lit_models2d import LitDCGAN2d, LitDDPM2d
 from src.model.model.DCGAN2d import LargeGeneratorInject2d, LargerDiscriminator2d
-from src.model.model.DDPM import Diffusion
-from src.model.model.modules_diffusion import UNet_conditional, EMA
 from src.model.model.DDPM2d import Diffusion2d
 from src.model.model.modules_diffusion2d import UNet_conditional2d, EMA2d
 
 from src.model.model.stylegan_simple import Generator, Discriminator
-from src.model.model.gan_resnet import GeneratorResNet, DiscriminatorResNet
 
 
 def instantiate_lit_model(config, logs_folder=None) -> pl.LightningModule:

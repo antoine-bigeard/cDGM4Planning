@@ -1,0 +1,59 @@
+checkpoint_callback:
+  filename: best-checkpoint
+  mode: min
+  monitor: val/loss
+  save_last: true
+checkpoint_path: null
+datamodule:
+  batch_size: 100
+  num_workers: 4
+  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
+  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
+  pct_test: 0.02
+  pct_train: 0.9
+  pct_val: 0.08
+  shuffle_data: true
+  two_dimensional: true
+lit_model:
+  b1: 0.5
+  b2: 0.999
+  cfg_scale: 0
+  conf_ddpm:
+    c_in: 3
+    c_out: 1
+    time_dim: 256
+    medium: True
+  conf_diffusion:
+    beta_end: 0.02
+    beta_start: 0.0001
+    noise_steps: 500
+    surf_size: 32
+  conf_ema:
+    beta: 0.995
+  ddpm: UNet_conditional2d
+  diffusion: Diffusion2d
+  ema: EMA2d
+  latent_dim: 20
+  lr: 0.0002
+  n_sample_for_metric: 100
+  use_rd_y: true
+  validation_x_shape:
+  - 1
+  - 1
+  - 32
+  - 32
+lit_model_type: LitDDPM2d
+mode: fit
+name_experiment: ore_maps_ddpm_500_smaller
+seed: 1234
+tensorboard_logs:
+  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs
+trainer:
+  accelerator: gpu
+  auto_lr_find: false
+  devices:
+  - 3
+  fast_dev_run: false
+  log_every_n_steps: 10
+  max_epochs: 50
+  min_epochs: 1

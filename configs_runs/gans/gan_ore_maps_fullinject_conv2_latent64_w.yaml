@@ -1,0 +1,257 @@
+checkpoint_callback: {}
+checkpoint_path: null
+datamodule:
+  batch_size: 150
+  num_workers: 4
+  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
+  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
+  pct_test: 0.02
+  pct_train: 0.9
+  pct_val: 0.08
+  shuffle_data: true
+  two_dimensional: true
+lit_model:
+  b1: 0.5
+  b2: 0.999
+  conf_discriminator:
+    layers:
+    - Cv2d:
+      - 3
+      - 128
+      - 3
+      - 2
+      - 1
+    - D:
+      - 0.4
+      LR:
+      - 0.2
+    - Cv2d:
+      - 128
+      - 256
+      - 3
+      - 2
+      - 1
+    - D:
+      - 0.4
+      LR:
+      - 0.2
+    - Cv2d:
+      - 256
+      - 256
+      - 3
+      - 1
+      - 1
+    - D:
+      - 0.4
+      LR:
+      - 0.2
+    - Cv2d:
+      - 256
+      - 128
+      - 3
+      - 1
+      - 1
+    - D:
+      - 0.4
+      LR:
+      - 0.2
+    - Cv2d:
+      - 128
+      - 128
+      - 3
+      - 1
+      - 1
+    - D:
+      - 0.4
+      LR:
+      - 0.2
+    - Cv2d:
+      - 128
+      - 64
+      - 3
+      - 1
+      - 1
+    - D:
+      - 0.4
+      LR:
+      - 0.2
+    - Cv2d:
+      - 64
+      - 32
+      - 3
+      - 1
+      - 1
+    - D:
+      - 0.4
+    - F: null
+    - L:
+      - 2048
+      - 1
+    spectral_norm:
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+    - false
+  conf_generator:
+    injections:
+    - - true
+      - 2
+      - 1
+    - - true
+      - 2
+      - 1
+    - - true
+      - 2
+      - 2
+    - - true
+      - 2
+      - 1
+    - - true
+      - 2
+      - 1
+    - - true
+      - 2
+      - 1
+    - - true
+      - 2
+      - 1
+    - - true
+      - 2
+      - 1
+    latent_dim: 64
+    layers:
+    - BN2d:
+      - 128
+      Cv2d:
+      - 128
+      - 128
+      - - 4
+        - 4
+      - - 2
+        - 2
+      - - 1
+        - 1
+      LR: null
+      UpSample:
+      - null
+      - 2
+      - bilinear
+    - BN2d:
+      - 256
+      Cv2d:
+      - 128
+      - 256
+      - - 3
+        - 3
+      - - 1
+        - 1
+      - - 1
+        - 1
+      D:
+      - 0.25
+      LR: null
+      UpSample:
+      - null
+      - 2
+      - bilinear
+    - BN2d:
+      - 512
+      Cv2d:
+      - 256
+      - 512
+      - - 4
+        - 4
+      - - 2
+        - 2
+      - - 1
+        - 1
+      LR: null
+    - Cv2d:
+      - 512
+      - 512
+      - - 3
+        - 3
+      - - 1
+        - 1
+      - - 1
+        - 1
+      LR: null
+    - Cv2d:
+      - 512
+      - 256
+      - - 3
+        - 3
+      - - 1
+        - 1
+      - - 1
+        - 1
+      LR: null
+    - Cv2d:
+      - 256
+      - 256
+      - - 3
+        - 3
+      - - 1
+        - 1
+      - - 1
+        - 1
+      LR: null
+    - Cv2d:
+      - 256
+      - 128
+      - - 3
+        - 3
+      - - 1
+        - 1
+      - - 1
+        - 1
+      LR: null
+    - Cv2d:
+      - 128
+      - 1
+      - - 3
+        - 3
+      - - 1
+        - 1
+      - - 1
+        - 1
+  d_lr: 0.0002
+  discriminator: LargerDiscriminator2d
+  g_lr: 0.0002
+  generator: LargeGeneratorInject2d
+  latent_1d: true
+  n_sample_for_metric: 100
+  use_rd_y: true
+  validation_x_shape:
+  - 10
+  - 1
+  - 32
+  - 32
+  wasserstein_gp_loss: w
+lit_model_type: LitDCGAN2d
+mode: fit
+name_experiment: gan_ore_maps_fullinject_2conv64
+seed: 123
+tensorboard_logs:
+  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs/gans_inject
+trainer:
+  accelerator: gpu
+  auto_lr_find: false
+  devices:
+  - 2
+  fast_dev_run: false
+  log_every_n_steps: 10
+  max_epochs: 50
+  min_epochs: 1

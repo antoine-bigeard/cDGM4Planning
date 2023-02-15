@@ -1,0 +1,52 @@
+checkpoint_callback: {}
+checkpoint_path: null
+datamodule:
+  batch_size: 256
+  num_workers: 4
+  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
+  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
+  pct_test: 0.02
+  pct_train: 0.9
+  pct_val: 0.08
+  shuffle_data: true
+  two_dimensional: true
+lit_model:
+  b1: 0.5
+  b2: 0.999
+  conf_discriminator:
+    log_resolution: 5
+    max_features: 512
+    n_features: 32
+  conf_generator:
+    d_latent: 64
+    latent_dim: 32
+    log_resolution: 5
+    n_features: 64
+  d_lr: 0.002
+  discriminator: Discriminator
+  g_lr: 0.002
+  generator: Generator
+  latent_1d: true
+  n_sample_for_metric: 100
+  use_rd_y: true
+  validation_x_shape:
+  - 10
+  - 1
+  - 32
+  - 32
+  wasserstein_gp_loss: w
+lit_model_type: LitDCGAN2d
+mode: fit
+name_experiment: stylegan_ore_maps_cond_w
+seed: 1234
+tensorboard_logs:
+  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs
+trainer:
+  accelerator: gpu
+  auto_lr_find: false
+  devices:
+  - 1
+  fast_dev_run: false
+  log_every_n_steps: 10
+  max_epochs: 50
+  min_epochs: 1

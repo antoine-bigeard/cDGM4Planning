@@ -15,11 +15,11 @@ datamodule:
 
 lit_model_type: LitDCGAN2d
 lit_model:
-  generator: LargeGeneratorInject2d
-  discriminator: LargerDiscriminator2d
+  generator: LargeGeneratorInject2d          # generator model (see DCGAN2d.py)
+  discriminator: LargerDiscriminator2d       # discriminator model (see DCGAN2d.py)
   conf_generator:
-    latent_dim: 128
-    layers: [
+    latent_dim: 128                          # dimension of the latent vector
+    layers: [                                # definition of the generator layers, see blocks.py for more details about the blocks
       {Cv2d: [128, 128, [4,4], [2,2], [1,1]], BN2d: [128], LR: null, UpSample: [null, 2, bilinear]},
       {Cv2d: [128, 256, [3,3], [1,1], [1,1]], BN2d: [256], LR: null, D: [0.25,], UpSample: [null, 2, bilinear]},
       {Cv2d: [256, 512, [4,4], [2,2], [1,1]], BN2d: [512], LR: null},
@@ -29,7 +29,10 @@ lit_model:
       {Cv2d: [256, 128, [3,3], [1,1], [1,1]], LR: null},
       {Cv2d: [128, 1, [3,3], [1,1], [1,1]]},
     ]
-    injections: [
+    injections: [                            # choose where to inject the condition
+                                             # [True to inject,
+                                             # out channels of the encoding convolution (if 0 injects without encoding)
+                                             # scaling factor (basic upsample/downsample is applied)]
       [True, 8, 1],
       [True, 8, 1],
       [True, 8, 2],
@@ -40,7 +43,7 @@ lit_model:
       [True, 8, 1],
     ]
   conf_discriminator:
-    layers: [
+    layers: [                                # definition of the discriminator layers, see blocks.py for more details about the blocks
       {Cv2d: [3, 128, 3, 2, 1]},
       {LR: [0.2], D: [0.4]},
       {Cv2d: [128, 256, 3, 2, 1]},
@@ -58,7 +61,7 @@ lit_model:
       {F: null},
       {L: [2048, 1]},
     ]
-    spectral_norm: [
+    spectral_norm: [                         # True to use spectral normalisation for the discriminator layers
       False,
       False,
       False,
@@ -76,16 +79,15 @@ lit_model:
       False,
       False,
     ]
-  g_lr: 0.0002
-  d_lr: 0.0002
-  b1: 0.5
-  b2: 0.999
-  validation_x_shape: [10, 1, 32, 32]
-  use_rd_y: True
-  batch_size: 150
-  wasserstein_gp_loss: False
-  n_sample_for_metric: 100
-  latent_1d: True
+  g_lr: 0.0002                               # generator learning rate
+  d_lr: 0.0002                               # discriminator learning rate
+  b1: 0.5                                    # Adam optimizer parameter b1
+  b2: 0.999                                  # Adam optimizer parameter b2
+  validation_x_shape: [10, 1, 32, 32]        # shape of for the tests made in validation
+  use_rd_y: True                             # True to generate new random conditions at each training step
+  wasserstein_gp_loss: False                 # False for Cross-Entropy loss, "w" for Wasserstein loss, "wgp" for Wassertein Gradient Penalty loss
+  n_sample_for_metric: 100                   # number of samples used for each data point when computing metrics
+  latent_1d: True                            # True to use 1dimensional latent vector and a Dense encoding before shaping it in 2d
 
 trainer:
   auto_lr_find: False                        # True to let PytorchLightning find the learning rate
@@ -99,7 +101,7 @@ trainer:
 tensorboard_logs:
   save_dir: logs                             # directory in which to save experiments               
 
-checkpoint_callback:                         # optional use of checkpoints, not used for GANs
+checkpoint_callback: {}                      # optional use of checkpoints, not used for GANs
   # monitor: val/loss                        # metric to monitor
   # mode: min                                # how to monitor the metric
   # save_last: True                          # True to always save the last checkpoint

@@ -7,11 +7,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from torchmetrics import MetricCollection, PearsonCorrCoef
-from src.model.model.DCGAN import *
+from src.model.model.DCGAN2d import *
 from src.model.lit_model.metrics import *
 from src.model.lit_model.lit_model_utils import *
-from src.model.model.modules_diffusion import *
-from src.model.model.DDPM import *
+from src.model.model.modules_diffusion2d import *
+from src.model.model.DDPM2d import *
 
 from src.utils import *
 from src.model.lit_model.metrics import compute_cond_dist
@@ -173,8 +173,8 @@ class LitModel2d(pl.LightningModule):
 class LitDCGAN2d(LitModel2d):
     def __init__(
         self,
-        generator: nn.Module = LargeGeneratorInject,
-        discriminator: nn.Module = LargerDiscriminator,
+        generator: nn.Module = LargeGeneratorInject2d,
+        discriminator: nn.Module = LargerDiscriminator2d,
         conf_generator: dict = {"latent_dim": 100},
         conf_discriminator: dict = {},
         g_lr: float = 0.0002,
@@ -290,33 +290,15 @@ class LitDCGAN2d(LitModel2d):
         d_output = torch.squeeze(self.discriminator(generated_surfaces, y.cuda()))
 
         if self.w_gp_loss in ["wgp", "w"]:
-            g_loss = (
-                -torch.mean(d_output)
-                # + 0.1
-                # * torch.stack(
-                #     [
-                #         compute_cond_dist(
-                #             generated_surfaces[i],
-                #             x[i],
-                #             (y_1_idxs[0][i], y_1_idxs[1][i]),
-                #         ).squeeze()
-                #         for i in range(x.shape[0])
-                #     ]
-                # ).mean()
-            )
-            # g_loss = F.softplus(-d_output).mean()
+            g_loss = -torch.mean(d_output)
         else:
-            g_loss = self.g_criterion(
-                d_output, torch.ones(x.shape[0]).to(self.device)
-            )  # + F.mse_loss(generated_surfaces[:, :, idxs_1], y[:, 1, idxs_1])
-            # g_loss = d_output.mean()
+            g_loss = self.g_criterion(d_output, torch.ones(x.shape[0]).to(self.device))
 
         return {"g_loss": g_loss, "preds": generated_surfaces, "condition": y}
 
     def discriminator_step(self, x, y):
         # Loss for the real samples
         d_output_real = torch.squeeze(self.discriminator(x.cuda(), y.cuda()))
-        # loss_real = d_output.mean()
 
         # Loss for the generated samples
         z = (
@@ -346,7 +328,6 @@ class LitDCGAN2d(LitModel2d):
             return {"d_loss": d_loss, "gradient_penalty": gradient_penalty}
         elif self.w_gp_loss == "w":
             d_loss = torch.mean(-d_output_real + d_output_fake)
-            # d_loss = (F.softplus(-d_output_real) + F.softplus(d_output_fake)).mean()
             return {"d_loss": d_loss}
 
         else:
@@ -358,7 +339,6 @@ class LitDCGAN2d(LitModel2d):
             )
             d_loss = (loss_real + loss_fake) / 2
             return {"d_loss": d_loss}
-        # loss_fake = d_output.mean()
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         x, y = batch
@@ -449,22 +429,17 @@ class LitDCGAN2d(LitModel2d):
     def on_train_start(self) -> None:
         os.makedirs(os.path.join(self.log_dir, "ckpts"), exist_ok=True)
 
-    # def on_train_epoch_end(self) -> None:
-    #     self.trainer.save_checkpoint(
-    #         os.path.join(self.log_dir, "ckpts", f"epoch_{self.current_epoch}")
-    #     )
-
 
 class LitDDPM2d(LitModel2d):
     def __init__(
         self,
-        ddpm=UNet_conditional,
+        ddpm=UNet_conditional2d,
         conf_ddpm={
             "c_in": 3,
             "c_out": 128,
             "time_dim": 256,
         },
-        diffusion=Diffusion,
+        diffusion=Diffusion2d,
         conf_diffusion: dict = {
             "noise_steps": 1000,
             "beta_start": 1e-4,

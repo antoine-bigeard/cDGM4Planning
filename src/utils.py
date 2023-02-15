@@ -28,26 +28,6 @@ def read_yaml_config_file(path_config: str):
         return yaml.load(conf, yaml.FullLoader)
 
 
-def random_observation(shape, return_1_idx=False, random=True):
-    y = torch.ones(shape[0], 2, shape[2])
-    if random:
-        y_ones_idx = [randrange(start=0, stop=shape[2]) for i in range(shape[0])]
-    else:
-        y_ones_idx = range(8, shape[2], int(shape[2] / shape[0]))
-    for i in range(shape[0]):
-        single_one = torch.tensor(
-            [1 if j == y_ones_idx[i] else 0 for j in range(shape[2])]
-        )
-        y[i, 0, :] = single_one
-        if random:
-            y[i, 1, :] = torch.rand(shape[2]) * single_one
-        else:
-            y[i, 1, :] = X0 * single_one
-    if return_1_idx:
-        return y, y_ones_idx
-    return y
-
-
 def calculate_gradient_penalty(
     discriminator, real_samples, fake_samples, labels, device
 ):
@@ -282,14 +262,6 @@ def get_idx_val(y, multiple_obs=False):
     if y.dim() == 3 and multiple_obs:
         nonzero_idx = torch.where(y[:, 0, :])
         return nonzero_idx, y[nonzero_idx[0], 1, nonzero_idx[1]]
-    # size [B, Seq_size, 2, 64]
-    if y.dim() == 4:
-        nonzero_idx = torch.where(y[:, :, 0, :] == 1)
-        idxs[nonzero_idx[0], nonzero_idx[1]] = nonzero_idx[2]
-        values[nonzero_idx[0], nonzero_idx[1]] = y[
-            nonzero_idx[0], nonzero_idx[1], 1, nonzero_idx[2]
-        ]
-        return idxs, values
 
 
 def get_idx_val_2D(y):
