@@ -19,7 +19,7 @@ lit_model:
   discriminator: LargerDiscriminator2d       # discriminator model (see DCGAN2d.py)
   conf_generator:
     latent_dim: 128                          # dimension of the latent vector
-    layers: [                                # definition of the generator layers, see blocks.py for more details about the blocks
+    layers: [                                # definition of the generator layers, see blocks.py for  more details about the blocks
       {Cv2d: [128, 128, [4,4], [2,2], [1,1]], BN2d: [128], LR: null, UpSample: [null, 2, bilinear]},
       {Cv2d: [128, 256, [3,3], [1,1], [1,1]], BN2d: [256], LR: null, D: [0.25,], UpSample: [null, 2, bilinear]},
       {Cv2d: [256, 512, [4,4], [2,2], [1,1]], BN2d: [512], LR: null},
@@ -93,7 +93,7 @@ trainer:
   auto_lr_find: False                        # True to let PytorchLightning find the learning rate
   min_epochs: 1                              # minimum of epochs for training
   max_epochs: 50                             # maximum of epochs for training
-  fast_dev_run: False                        # True to run in debug
+  fast_dev_run: false                        # True to run in debug
   accelerator: gpu
   devices: [0]
   log_every_n_steps: 10                      # saving frequency for the logs

@@ -52,6 +52,7 @@ def main(config):
 
     # load trained model if checkpoutint is given
     if checkpoint_path is not None:
+        print("Logging checkpoint found at: ", checkpoint_path)
         try:
             lit_model = lit_model.load_from_checkpoint(
                 checkpoint_path, **lit_model.hparams
@@ -100,7 +101,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="configs_runs/gan_ore_maps_w_full_inject.yaml",
+        default="configs_runs/ddpms/ddpm_ore_maps_100.yaml",
         required=False,
     )
 

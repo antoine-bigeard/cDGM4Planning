@@ -1,4 +1,5 @@
-paths_logs: [
+# list of tuples (path to logs, label that you want to appear on the plot)
+paths_logs: [                                                         
   [logs/ddpms/ddpm_ore_maps_100/version_1, DDPM - 100],
   [logs/ddpms/ddpm_ore_maps_150/version_1, DDPM - 150],
   [logs/ddpms/ddpm_ore_maps_200/version_1, DDPM - 200],
@@ -9,31 +10,7 @@ paths_logs: [
   [logs/ddpms/ddpm_ore_maps_500_medium/version_1, DDPM - 500 medium],
   [logs/ddpms/ddpm_ore_maps_500_small/version_4, DDPM - 500 small],
   [logs/ddpms/ddpm_ore_maps_1000/version_1, DDPM - 1000],
-  # logs/ore_maps_gan_2inject_wgp/version_2,
-  # logs/ore_maps_gan_fullSN_wgp/version_4,
-  # logs/ore_maps_gan_fullinject_noT/version_2,
-  # logs/ore_maps_gan_1inject_noT/version_2,
-  # [logs/gans_inject/gan_ore_maps_fullinject_2conv64/version_1, W-GAN - fullinject 2chan_wconv - latent dim 64],
-  # [logs/gans_inject/gan_ore_maps_fullinject_8conv/version_1, W-GAN - fullinject 8chan_wconv - latent dim 128],
-  # [logs/gans_inject/gan_ore_maps_fullinject_8conv64/version_1, W-GAN - fullinject 8chan_wconv - latent dim 64],
-  # [logs/gans_inject/gan_ore_maps_fullinject_conv/version_1, W-GAN - fullinject 2chan_wconv - latent dim 128],
-  # [logs/gans_inject/gan_ore_maps_halfinject_8conv/version_1, W-GAN - halfinject 8chan_wconv - latent dim 128],
-  # [logs/gans_inject/gan_ore_maps_halfinject_conv/version_1, W-GAN - halfinject 2chan_wconv - latent dim 128],
-  # [logs/gans_inject/gan_ore_maps_7inject_diff_dis/version_7, W-GAN - 7inject diff dis],
-  # [logs/gans_inject/gan_ore_maps_halfinject_2conv_64/version_4, W-GAN - halfinject 2chan_wconv - latent dim 64],
-  # [logs/gans_inject/gan_ore_maps_halfinject_2conv_32/version_2, W-GAN - halfinject 2chan_wconv - latent dim 32],
-  # [logs/gans_inject/gan_ore_maps_1_8conv_64/version_2, W-GAN - 1inject conv8 latent64],
-  # [logs/gans_inject/gan_ore_maps_1_8conv_128/version_1, W-GAN - 1inject conv8 latent128],
-  # [logs/gans_inject/gan_ore_maps_f_8conv_128_ce/version_2, CE-GAN - fullinject conv8 latent128],
-  # [logs/gans_inject/gan_ore_maps_f_8conv_128_wgp/version_2, WGP-GAN - fullinject conv8 latent128],
-  # [logs/gans_inject/gan_ore_maps_fullinject_conv/version_4, W-GAN - fullinject conv2 latent128],
-  # [logs/gans_inject/gan_ore_maps_fullinject_8conv/version_3, W-GAN - fullinject conv8 latent128],
-  # [logs/gans_inject/gan_ore_maps_fullinject_2conv64/version_4, W-GAN - fullinject conv2 latent64],
-  # [logs/gans_inject/gan_ore_maps_fullinject_8conv64/version_3, W-GAN - fullinject conv8 latent64],
-  # [logs/gans_inject/gan_ore_maps_halfinject_2conv_32/version_4, W-GAN - halfinject conv2 latent32],
-  # [logs/gans_inject/gan_ore_maps_halfinject_2conv_64/version_6, W-GAN - halfinject conv2 latent64],
-  # [logs/gans_inject/gan_ore_maps_halfinject_conv/version_3, W-GAN - halfinject conv2 latent128],
-  # [logs/gans_inject/gan_ore_maps_halfinject_8conv/version_5, W-GAN - halfinject conv8 latent128],
 ]
 
+# path to the output where the figures are saved
 path_output: logs/plots/all_ddpms_test_pgf

@@ -43,7 +43,7 @@ trainer:
   auto_lr_find: False                        # True to let PytorchLightning find the learning rate
   min_epochs: 1                              # minimum of epochs for training
   max_epochs: 50                             # maximum of epochs for training
-  fast_dev_run: False                        # True to run in debug
+  fast_dev_run: false                        # True to run in debug
   accelerator: gpu
   devices: [0]
   log_every_n_steps: 10                      # saving frequency for the logs

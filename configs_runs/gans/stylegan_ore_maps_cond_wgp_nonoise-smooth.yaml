@@ -1,5 +1,5 @@
 checkpoint_callback: {}
-checkpoint_path: null
+checkpoint_path: logs/stylegan_ore_maps_cond_wgp/version_4/checkpoints/epoch=31-step=11264.ckpt
 datamodule:
   batch_size: 512
   num_workers: 4
@@ -16,17 +16,18 @@ lit_model:
     log_resolution: 5
     max_features: 512
     n_features: 32
+    smooth: False
   conf_generator:
     d_latent: 64
     latent_dim: 32
     log_resolution: 5
     n_features: 64
-  d_lr: 0.002
-  discriminator: Discriminator
-  conf_discriminator: {smooth: False}
-  g_lr: 0.002
+    add_noise: False
+    smooth: False
   generator: Generator
-  conf_generator: {add_noise: False, smooth: False}
+  discriminator: Discriminator
+  d_lr: 0.002
+  g_lr: 0.002
   latent_1d: true
   n_sample_for_metric: 100
   use_rd_y: true
@@ -41,7 +42,7 @@ mode: fit
 name_experiment: stylegan_ore_maps_cond_wgp
 seed: 1234
 tensorboard_logs:
-  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs
+  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs_final_tests
 trainer:
   accelerator: gpu
   auto_lr_find: false

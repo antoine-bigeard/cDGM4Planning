@@ -19,7 +19,7 @@ To run trainings, tests or inferences, we use yaml configuration files.
 - tests made at the beginning of each epoch in the folders `logs/name_experiment/epoch_i`.
 - tensorboard results in a tensorboard events file.
 
-3. Typical configuration file description:
+3. A typical configuration file description for DDPMs can be found [here](configs_runs/ddpm_ore_maps_100_example.yaml). And for the GANs [here](configs_runs/gan_ore_maps_example.yaml).
 
 ### Testing a model
 
@@ -40,14 +40,14 @@ or the number of samples used for the tests). An example if provided below, and 
 To visualize the results of the tests, configure a `visualize.yaml` file to basically specify which tests results to plot, and where to save them.
 Then run the command `python src/visualize_tests.py --path_config visualize.yaml`.
 
-Here is an example of the update config file:
+An example for the update config file can be found [here](configs_tests/update_conf_for_tests.yaml).
 
-Here is an example for the visualization config file:
+An example for the visualization config file can be found [here](configs_visualize/visualize.yaml).
 
 #### Inference and image-based tests
 This part shows how to test models on various data, and produce the output image to visually have a grasp of the model's performance. To do so:
 
-1. Configure the `image_test.yaml` file. You basically need to provide a list of number of conditions for the test, as well as the models to test, and a path to save the results
+1. Configure [this file](configs_cond_tests/image_test.yaml). You basically need to provide a list of number of conditions for the test, as well as the models to test, and a path to save the results
 (optionally a path for previous tests that you want to plot again).
 
 2. Run the command `python src/inference_test.py --path_config image_test.yaml`.

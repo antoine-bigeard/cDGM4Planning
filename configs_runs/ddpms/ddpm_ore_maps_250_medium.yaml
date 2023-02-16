@@ -3,7 +3,7 @@ checkpoint_callback:
   mode: min
   monitor: val/loss
   save_last: true
-checkpoint_path: null
+checkpoint_path: logs/ddpms/ddpm_ore_maps_250_medium/version_0/checkpoints/ddpm_ore_maps_250_medium.ckpt
 datamodule:
   batch_size: 100
   num_workers: 4
@@ -47,12 +47,12 @@ mode: fit
 name_experiment: ore_maps_ddpm_250_smaller
 seed: 1234
 tensorboard_logs:
-  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs
+  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs_final_tests
 trainer:
   accelerator: gpu
   auto_lr_find: false
   devices:
-  - 2
+  - 0
   fast_dev_run: false
   log_every_n_steps: 10
   max_epochs: 50

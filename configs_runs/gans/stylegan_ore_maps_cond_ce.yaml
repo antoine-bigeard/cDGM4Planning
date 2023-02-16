@@ -1,5 +1,5 @@
 checkpoint_callback: {}
-checkpoint_path: null
+checkpoint_path: logs/stylegan_ore_maps_cond_ce/version_0/checkpoints/epoch=49-step=35200.ckpt
 datamodule:
   batch_size: 256
   num_workers: 4
@@ -40,7 +40,7 @@ mode: fit
 name_experiment: stylegan_ore_maps_cond_ce
 seed: 1234
 tensorboard_logs:
-  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs
+  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs_final_tests
 trainer:
   accelerator: gpu
   auto_lr_find: false

@@ -1,0 +1,28 @@
+# list of number of observations that are going to be tested
+n_obs: [1, 2, 3, 5, 8, 12, 16, 20]
+
+# path to the training logs
+path_logs: [
+  logs/ddpms/ddpm_ore_maps_100/version_0,
+]
+
+# path to write the output figures
+path_output: logs/logs_test_style
+# path of tests that have already been made (so that you don't need to compute them again)
+path_saved_tests: logs/test10
+
+# configuration for datamodule that will overwrite the one found in path_logs
+# (only for the options that appear below)
+datamodule: 
+  path_surfaces_h5py: data/ore_maps_test_32.hdf5
+  path_observations_h5py: data/ore_maps_test_obs_32.hdf5
+  batch_size: 1
+  pct_train: 0
+  pct_val: 0
+  pct_test: 1
+  shuffle_data: False
+
+# configuration for litghtning model that will overwrite the one found in path_logs
+# (only for the options that appear below)
+lit_model:
+  n_sample_for_metric: 100

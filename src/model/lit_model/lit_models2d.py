@@ -11,7 +11,7 @@ from src.model.model.DCGAN2d import *
 from src.model.lit_model.metrics import *
 from src.model.lit_model.lit_model_utils import *
 from src.model.model.modules_diffusion2d import *
-from src.model.model.DDPM2d import *
+from model.model.DDPM2d import *
 
 from src.utils import *
 from src.model.lit_model.metrics import compute_cond_dist
@@ -446,7 +446,7 @@ class LitDDPM2d(LitModel2d):
             "beta_end": 0.02,
             "surf_size": 256,
         },
-        ema=EMA,
+        ema=EMA2d,
         conf_ema={"beta": 0.995},
         lr: float = 0.0002,
         b1: float = 0.5,

@@ -1,5 +1,10 @@
+# path to the logs of a previous fitting experiment
+# the corresponding configuration and checkpoint will be taken from this folder
 path_logs: logs/ddpms/ddpm_ore_maps_100/version_0
 
+# what is in update is similar to the configurations to run experiment
+# just add what you want to overwrite in the configuration file in path_logs that will be used
+# (for instance change batch size and datasets)
 update_conf:
   mode: test
 
@@ -16,4 +21,4 @@ update_conf:
     n_sample_for_metric: 100
 
   trainer:
-    devices: [1]
+    devices: [0]

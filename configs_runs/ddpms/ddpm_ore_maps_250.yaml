@@ -46,7 +46,7 @@ mode: fit
 name_experiment: ore_maps_ddpm_250
 seed: 1234
 tensorboard_logs:
-  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs
+  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs_final_tests
 trainer:
   accelerator: gpu
   auto_lr_find: false

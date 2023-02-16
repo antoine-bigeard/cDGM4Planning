@@ -1,5 +1,5 @@
 checkpoint_callback: {}
-checkpoint_path: null
+checkpoint_path: logs/gans_inject/gan_ore_maps_fullinject_2conv64/version_0/checkpoints/gan_ore_maps_fullinject_conv2_latent64.ckpt
 datamodule:
   batch_size: 150
   num_workers: 4
@@ -245,12 +245,12 @@ mode: fit
 name_experiment: gan_ore_maps_fullinject_2conv64
 seed: 123
 tensorboard_logs:
-  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs/gans_inject
+  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs_final_tests/gans_inject
 trainer:
   accelerator: gpu
   auto_lr_find: false
   devices:
-  - 2
+  - 0
   fast_dev_run: false
   log_every_n_steps: 10
   max_epochs: 50
