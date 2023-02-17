@@ -1,3 +1,7 @@
+"""
+This code for StyleGan is adapted from `https://github.com/labmlai/annotated_deep_learning_paper_implementations/blob/master/labml_nn/gan/stylegan/__init__.py`. 
+"""
+
 import math
 from typing import Tuple, Optional, List
 

@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(0, "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS")
+sys.path.insert(0, ".")
 import matplotlib.pyplot as plt
 import os
 import pytorch_lightning as pl

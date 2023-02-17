@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(0, "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS")
+sys.path.insert(0, ".")
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger

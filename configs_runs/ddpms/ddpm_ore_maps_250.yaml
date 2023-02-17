@@ -7,11 +7,11 @@ checkpoint_path: null
 datamodule:
   batch_size: 100
   num_workers: 4
-  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
+  path_observations_h5py: data/ore_maps_observations_32.hdf5
+  path_surfaces_h5py: data/ore_maps_32.hdf5
   pct_test: 0.002
-  pct_train: 0.8
-  pct_val: 0.18
+  pct_train: 0.9
+  pct_val: 0.08
   shuffle_data: true
   two_dimensional: true
 lit_model:
@@ -46,7 +46,7 @@ mode: fit
 name_experiment: ore_maps_ddpm_250
 seed: 1234
 tensorboard_logs:
-  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs_final_tests
+  save_dir: logs_final_tests
 trainer:
   accelerator: gpu
   auto_lr_find: false

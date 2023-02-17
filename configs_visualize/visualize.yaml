@@ -1,16 +1,18 @@
 # list of tuples (path to logs, label that you want to appear on the plot)
 paths_logs: [                                                         
-  [logs/ddpms/ddpm_ore_maps_100/version_1, DDPM - 100],
-  [logs/ddpms/ddpm_ore_maps_150/version_1, DDPM - 150],
-  [logs/ddpms/ddpm_ore_maps_200/version_1, DDPM - 200],
-  [logs/ddpms/ddpm_ore_maps_250/version_1, DDPM - 250],
-  [logs/ddpms/ddpm_ore_maps_250_medium/version_1, DDPM - 250 medium],
-  [logs/ddpms/ddpm_ore_maps_250_small/version_5, DDPM - 250 small],
-  [logs/ddpms/ddpm_ore_maps_500/version_1, DDPM - 500],
-  [logs/ddpms/ddpm_ore_maps_500_medium/version_1, DDPM - 500 medium],
-  [logs/ddpms/ddpm_ore_maps_500_small/version_4, DDPM - 500 small],
-  [logs/ddpms/ddpm_ore_maps_1000/version_1, DDPM - 1000],
+  # [logs/ddpms/ddpm_ore_maps_100/version_1, DDPM (Large, 100)],
+  # [logs/ddpms/ddpm_ore_maps_150/version_1, DDPM (Large, 150)],
+  # [logs/ddpms/ddpm_ore_maps_200/version_1, DDPM (Large, 200)],
+  [logs/ddpms/ddpm_ore_maps_250/version_1, "DDPM (Large, 250)"],
+  [logs/ddpms/ddpm_ore_maps_250_medium/version_1, DDPM (Medium, 250)],
+  [logs/ddpms/ddpm_ore_maps_250_small/version_5, DDPM (Small, 250)],
+  [logs/ddpms/ddpm_ore_maps_500/version_1, "DDPM (Large, 500)"],
+  [logs/ddpms/ddpm_ore_maps_500_medium/version_1, DDPM (Medium, 500)],
+  [logs/ddpms/ddpm_ore_maps_500_small/version_4, DDPM (Small, 500)],
+  # [logs/ddpms/ddpm_ore_maps_1000/version_1, DDPM (Large, 1000)],
+  # [logs/gans_inject/gan_ore_maps_halfinject_2conv_32/version_4, "GAN (Half, 2, 32, W)"],
+  # [logs/gans_inject/gan_ore_maps_fullinject_conv/version_4, "GAN (All, 2, 128, W)"],
 ]
 
 # path to the output where the figures are saved
-path_output: logs/plots/all_ddpms_test_pgf
+path_output: logs/plots/ddpms_sizes

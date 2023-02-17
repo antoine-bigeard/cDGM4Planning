@@ -1,3 +1,7 @@
+"""
+Code adapted from `https://github.com/dome272/Diffusion-Models-pytorch`.
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

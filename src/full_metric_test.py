@@ -1,6 +1,6 @@
 import sys
 
-sys.path.insert(0, "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS")
+sys.path.insert(0, ".")
 
 from src.utils import read_yaml_config_file, update
 

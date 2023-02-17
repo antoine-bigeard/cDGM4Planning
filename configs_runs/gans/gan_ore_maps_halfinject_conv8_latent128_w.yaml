@@ -3,8 +3,8 @@ checkpoint_path: logs/gans_inject/gan_ore_maps_halfinject_8conv/version_0/checkp
 datamodule:
   batch_size: 150
   num_workers: 4
-  path_observations_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_observations_32.hdf5
-  path_surfaces_h5py: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/ore_maps_32.hdf5
+  path_observations_h5py: data/ore_maps_observations_32.hdf5
+  path_surfaces_h5py: data/ore_maps_32.hdf5
   pct_test: 0.02
   pct_train: 0.9
   pct_val: 0.08
@@ -245,7 +245,7 @@ mode: fit
 name_experiment: gan_ore_maps_halfinject_8conv
 seed: 123
 tensorboard_logs:
-  save_dir: /home/abigeard/RA_CCS/DeepGenerativeModelsCCS/logs_final_tests/gans_inject
+  save_dir: logs_final_tests/gans_inject
 trainer:
   accelerator: gpu
   auto_lr_find: false
