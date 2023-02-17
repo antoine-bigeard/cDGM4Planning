@@ -7,21 +7,25 @@ include("generative_ME_belief.jl")
 
 # Sample POMDP with the same extraction cost and ore_threshold as the one used to generate the data
 m = MinExPOMDP()
+Ntest = 46
 
 # List of results files to process
-result_files = readdir("planning/results"; join=true)
-
+result_files = readdir("planning/results/planning"; join=true)
+gr()
 plots=[]
 for rfile in result_files
     name = split(split(rfile, "results_")[2], ".")[1]
     results = JLD2.load(rfile)["results"]
-    results = results[1:min(length(results), 46)]
+    println("rfile: $rfile, num results: $(length(results))")
+    results = results[1:min(length(results), Ntest)]
     println("name: ", name, " num evaled: ", length(results))
 
     # Distribution of returns
     rets = [undiscounted_reward(h) for h in results]
     p_ret = histogram(rets, bins=-150:10:200, xlabel="return", label="", title=name, xlims=(-150,200))
     vline!([mean(rets)], label="mean=$(mean(rets))", linewidth=3)
+    annotate!(100, length(rets) / 5, text("Returns: $(mean(rets)) +/- $(std(rets) / sqrt(length(rets)))", 20, :center))
+
 
     # Regret
     extraction_rewards = [extraction_reward(m, h[1].s) for h in results]
@@ -52,6 +56,8 @@ for rfile in result_files
     end
     len_actions = [action_len(h) for h in results]
     p_acts = histogram(len_actions, xlabel="No. Actions", label="", title=name)
+    annotate!(20, length(rets) / 5, text("num actions: $(mean(len_actions))", 20, :center))
+
     
     push!(plots, plot(p_ret, p_reg, p_acts, layout=(1,3)))
 end

@@ -1,7 +1,7 @@
 trial_type: DGM_VOI_Multi
 name: DDPM250_VOI_Multi
 savefolder: planning/results
-Ntrials: 100
+Ntrials: 50
 DGM_path: /home/acorso/Workspace/DeepGenerativeModelsCCS
 
 model_config: planning/models/ddpm_ore_maps_250.yaml

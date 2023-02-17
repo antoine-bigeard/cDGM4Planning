@@ -1,11 +1,6 @@
 # Run this file with a command such as
 # export CUDA_VISIBLE_DEVICES=1
 #julia1.8 planning/run_experiment.jl planning/configs/random_policy.yaml
-#julia1.8 planning/run_experiment.jl planning/configs/pomcpow.yaml
-#julia1.8 planning/run_experiment.jl planning/configs/ddpm250.yaml
-#julia1.8 planning/run_experiment.jl planning/configs/ddpm500.yaml
-#julia1.8 planning/run_experiment.jl planning/configs/conv1.yaml
-#julia1.8 planning/run_experiment.jl planning/configs/conv8.yaml
 
 using YAML
 using HDF5
@@ -33,15 +28,16 @@ m = MinExPOMDP(;σ_abc, drill_locations = [(i,j) for i=3:7:31 for j=3:7:31])
 
 # Load the ore maps
 s_all = imresize(h5read("planning/data/ore_maps.hdf5", "X"), (32,32))
+s_test = imresize(h5read("planning/data/test_ore_maps.hdf5", "X"), (32,32))
 
 # Load the trials states
 Ntrials = config["Ntrials"]
-s0_trial = [MinExState(s_all[:,:,i]) for i in 1:Ntrials]
+s0_trial = [MinExState(s_test[:,:,i]) for i in 1:Ntrials]
 
 # Function to load the particle set if needed
 function particle_set(Nparticles)
     Random.seed!(0) # Particle set consistency
-    indices = shuffle(Ntrials:size(s_all, 3))[1:Nparticles]
+    indices = shuffle(1:size(s_all, 3))[1:Nparticles]
     return [MinExState(s_all[:,:,i]) for i in indices]
 end
 

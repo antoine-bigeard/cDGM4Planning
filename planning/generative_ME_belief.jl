@@ -98,7 +98,7 @@ end
 
 function unregulated_sample_from_model(model, drill_observations::Array)
     N = length(drill_observations)
-    input = zeros(N, 2, 32, 32)
+    input = zeros(Float32, N, 2, 32, 32)
     for i=1:N
         for (a, o) in drill_observations[i]
             input[i, 1, a...] = 1

@@ -1,7 +1,7 @@
 trial_type: PF_VOI
 name: PF_VOI_Tight
 savefolder: planning/results
-Ntrials: 100
+Ntrials: 50
 Nparticles: 10000
 ABC_param: 0.01
 Nobs_VOI: 50
