@@ -63,6 +63,7 @@ class Generator(nn.Module):
 
         self.add_noise = add_noise
         self.smooth = smooth
+        self.n_features = n_features
         # Something like `[512, 512, 256, 128, 64, 32]`
         features = [
             min(max_features, n_features * (2**i))
@@ -131,8 +132,12 @@ class Generator(nn.Module):
 
         # Get batch size
         y = self.encode_cond(y)
-        z = torch.cat([z.squeeze(), y], axis=1)
-        w = self.mapping_network(z.squeeze())
+        z = torch.cat(
+            [z.squeeze().unsqueeze(0) if z.size(0) == 1 else z.squeeze(), y], axis=1
+        )
+        w = self.mapping_network(
+            z.squeeze().unsqueeze(0) if z.size(0) == 1 else z.squeeze()
+        )
         w = w[None, :, :].expand(self.n_gen_blocks, -1, -1)
         batch_size = w.shape[1]
         input_noise = self.get_noise(batch_size)

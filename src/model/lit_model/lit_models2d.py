@@ -429,6 +429,10 @@ class LitDCGAN2d(LitModel2d):
     def on_train_start(self) -> None:
         os.makedirs(os.path.join(self.log_dir, "ckpts"), exist_ok=True)
 
+    def inference(self, conditions):
+        with torch.inference_mode():
+            return self.generator.inference(conditions, latent_dim=self.latent_dim)
+
 
 class LitDDPM2d(LitModel2d):
     def __init__(
