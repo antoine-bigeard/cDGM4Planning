@@ -11,7 +11,7 @@ from src.model.model.DCGAN2d import *
 from src.model.lit_model.metrics import *
 from src.model.lit_model.lit_model_utils import *
 from src.model.model.modules_diffusion2d import *
-from model.model.DDPM2d import *
+from src.model.model.DDPM2d import *
 
 from src.utils import *
 from src.model.lit_model.metrics import compute_cond_dist
