@@ -51,3 +51,6 @@ This part shows how to test models on various data, and produce the output image
 (optionally a path for previous tests that you want to plot again).
 
 2. Run the command `python src/inference_test.py --path_config image_test.yaml`.
+
+## Planning
+For information about the planning experiments, see the README in the folder named `planning`

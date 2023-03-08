@@ -3,6 +3,9 @@ using POMDPTools
 using Distributions
 using Parameters
 
+# Helper function for sampling multiple states from teh posterior
+Base.rand(b::ParticleCollection, N::Int) = [rand(b) for _=1:N]
+
 ## Definition of the POMDP
 @with_kw struct MinExPOMDP <: POMDP{Any, Any, Any} 
     ore_threshold = 0.7
@@ -112,13 +115,13 @@ struct MinExActionSampler end
 function POMCPOW.next_action(o::MinExActionSampler, problem, b, h)
     # Get the set of children from the current node
     tried_idxs = h.tree isa POMCPOWTree ? h.tree.tried[h.node] : h.tree.children[h.index]
-    
+    drill_locations = undrilled_locations(problem, b)
     if length(tried_idxs) == 0 # First visit, try abandon
         return :abandon
-    elseif length(tried_idxs) == 1 # Second visit, try mine
+    elseif length(drill_locations) == 0 || length(tried_idxs) == 1 # Second visit, try mine
         return :mine
     else # 3+ visit, try drilling
-        return rand(undrilled_locations(problem, b))
+        return rand(drill_locations)
     end
 end
 
