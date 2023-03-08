@@ -14,6 +14,19 @@ import random as rd
 import collections.abc
 
 
+def padding_data(conditions):
+    max_len_seq = max([len(cond) for cond in conditions])
+    pad_cond = []
+    for cond in conditions:
+        cond = torch.Tensor(cond)
+        pad_cond.append(
+            torch.cat(
+                [cond, torch.zeros([max_len_seq - cond.size(0)] + list(cond[0].shape))]
+            )
+        )
+    return torch.stack(pad_cond)
+
+
 def update(d, u):
     for k, v in u.items():
         if isinstance(v, collections.abc.Mapping):

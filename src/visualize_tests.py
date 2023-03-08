@@ -79,7 +79,7 @@ def main_plot(path_logs: list, out_dir: str) -> None:
             if metric in meas_dict:
                 values_table[metric].append(f"{meas_dict[metric]:.4f}")
 
-    cm_ddpm = pl.cm.Reds(
+    cm_ddpm = pl.cm.magma(
         np.linspace(0.5, 1, len([path for path in path_logs if "ddpm" in path[0]]))
     )
     cm_gan = pl.cm.Greens(

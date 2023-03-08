@@ -2,16 +2,19 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from PIL import Image
 import h5py
+import json
 import torch
 from src.data.dataset.dataset import MyDataset, MyDataset2d
+from src.utils import padding_data
 import pandas as pd
 
 
 class MyDataModule(pl.LightningDataModule):
     def __init__(
         self,
-        path_surfaces_h5py: str,
-        path_observations_h5py: str,
+        path_surfaces_h5py: str = None,
+        path_observations_h5py: str = None,
+        path_data_json: str = None,
         batch_size: int = 256,
         num_workers: int = 4,
         pct_train: float = 0.9,
@@ -26,6 +29,7 @@ class MyDataModule(pl.LightningDataModule):
         super().__init__()
         self.path_surfaces_h5py = path_surfaces_h5py
         self.path_observations_h5py = path_observations_h5py
+        self.path_data_json = path_data_json
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pct_train = pct_train
@@ -36,13 +40,28 @@ class MyDataModule(pl.LightningDataModule):
         self.shuffle_data = shuffle_data
 
     def prepare_data(self):
-        with h5py.File(self.path_surfaces_h5py, "r") as f:
-            a_group_key = list(f.keys())[0]
-            surfaces = list(f[a_group_key])
-        with h5py.File(self.path_observations_h5py, "r") as f:
-            a_group_key = list(f.keys())[0]
-            observations = list(f[a_group_key])
-        df = pd.DataFrame({"surfaces": surfaces, "observations": observations})
+        if self.path_observations_h5py is not None:
+            with h5py.File(self.path_surfaces_h5py, "r") as f:
+                a_group_key = list(f.keys())[0]
+                surfaces = list(f[a_group_key])
+            with h5py.File(self.path_observations_h5py, "r") as f:
+                a_group_key = list(f.keys())[0]
+                observations = list(f[a_group_key])
+        elif self.path_data_json is not None:
+            with open(self.path_data_json, "r") as f:
+                data = json.load(f)
+                surfaces = data["states"]
+                observations = data["observations"]
+                actions = data["actions"]
+                if self.sequential_cond:
+                    surfaces = padding_data(surfaces)
+                    surfaces = surfaces[:, -1, :, :]
+                    observations = padding_data(observations)
+                    actions = padding_data(actions)
+                    observations = torch.cat([observations, actions], dim=-2)
+        df = pd.DataFrame(
+            {"surfaces": list(surfaces), "observations": list(observations)}
+        )
         if self.shuffle_data:
             df = df.sample(frac=1, random_state=1).reset_index(drop=True, inplace=False)
         total = len(df)

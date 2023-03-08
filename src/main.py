@@ -101,7 +101,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="configs_runs/ddpms/ddpm_ore_maps_100.yaml",
+        default="configs_runs/sequence/ddpm_ore_maps_100.yaml",
         required=False,
     )
 

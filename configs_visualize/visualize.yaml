@@ -15,4 +15,4 @@ paths_logs: [
 ]
 
 # path to the output where the figures are saved
-path_output: logs/plots/ddpms_iterations
+path_output: logs/plots/ddpms_iterations2
