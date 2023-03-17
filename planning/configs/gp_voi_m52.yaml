@@ -1,9 +1,0 @@
-trial_type: GP_VOI
-name: GP_VOI_M52
-savefolder: planning/results
-model_config: "gp_m52_1000.jld2"
-Ntrials: 50
-Nobs_VOI: 50
-Nsamples_est_VOI: 10
-
-init_drill_threshold: 5
