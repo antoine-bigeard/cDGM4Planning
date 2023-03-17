@@ -3,11 +3,13 @@ using POMDPTools
 using Distributions
 using Parameters
 
+using ParticleFilters
+
 # Helper function for sampling multiple states from teh posterior
 Base.rand(b::ParticleCollection, N::Int) = [rand(b) for _=1:N]
 
 ## Definition of the POMDP
-@with_kw struct MinExPOMDP <: POMDP{Any, Any, Any} 
+@with_kw struct MinExPOMDP <: POMDP{Any, Any, Any}
     ore_threshold = 0.7
     extraction_cost = 52 # for 32x32. use 150 for 50x50
     drill_cost = .1
@@ -66,7 +68,7 @@ end
 function POMDPs.gen(m::MinExPOMDP, s, a, rng)
     # Compute the next state
     sp = (a in m.terminal_actions || isterminal(m, s)) ? :terminal : deepcopy(s)
-    
+
     # Compute the reward
     if a == :abandon || isterminal(m, s)
         r = 0
@@ -105,7 +107,7 @@ function POMDPTools.obs_weight(m::MinExPOMDP, s, a, sp, o)
     return w
 end
 
-## Next action functionality for tree-search solvers 
+## Next action functionality for tree-search solvers
 using POMCPOW
 
 struct MinExActionSampler end

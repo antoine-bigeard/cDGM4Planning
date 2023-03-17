@@ -4,13 +4,14 @@ using ParticleFilters
 using Plots
 include("minex_definition.jl")
 include("generative_ME_belief.jl")
+include("generative_GP_belief.jl")
 
 # Sample POMDP with the same extraction cost and ore_threshold as the one used to generate the data
 m = MinExPOMDP()
 Ntest = 46
 
 # List of results files to process
-result_files = readdir("planning/results/planning"; join=true)
+result_files = readdir("planning/results"; join=true)
 gr()
 plots=[]
 for rfile in result_files
@@ -31,7 +32,7 @@ for rfile in result_files
     extraction_rewards = [extraction_reward(m, h[1].s) for h in results]
     println("extraction rewards: ", extraction_rewards)
     optimal_returns = max.(0, extraction_rewards)
-    regret = optimal_returns .- rets 
+    regret = optimal_returns .- rets
     p_reg = histogram(regret, xlabel="Regret", label="", title="$name Regret", xlims=(0,200))
     vline!([mean(regret)], label="mean=$(mean(regret))", linewidth=3)
 
@@ -58,17 +59,17 @@ for rfile in result_files
     p_acts = histogram(len_actions, xlabel="No. Actions", label="", title=name)
     annotate!(20, length(rets) / 5, text("num actions: $(mean(len_actions))", 20, :center))
 
-    
+
     push!(plots, plot(p_ret, p_reg, p_acts, layout=(1,3)))
 end
 
 plot(plots..., layout=(length(result_files), 1), size=(1800, 400*length(result_files)))
 savefig("results.pdf")
 
-results = JLD2.load("planning/results/results_PF_VOI_Loose.jld2")["results"]
+# results = JLD2.load("planning/results/results_PF_VOI_Loose.jld2")["results"]
 
-Base.length(::Symbol) = 1
-as = [mean([length(a) for a in action_hist(h)]) for h in results]
+# Base.length(::Symbol) = 1
+# as = [mean([length(a) for a in action_hist(h)]) for h in results]
 
 
 

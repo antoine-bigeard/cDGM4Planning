@@ -6,16 +6,18 @@ using YAML
 using HDF5
 using JLD2
 using Random
+using POMDPs
 using MCTS
 using ParticleFilters
 using Images
 include("minex_definition.jl")
 include("voi_policy.jl")
 include("generative_ME_belief.jl")
+include("generative_GP_belief.jl")
 
 # load the param file
 config = YAML.load_file(ARGS[1])
-name = config["name"] 
+name = config["name"]
 
 if occursin("DGM", config["trial_type"])
     # Load code for generative models
@@ -27,8 +29,8 @@ end
 m = MinExPOMDP(;σ_abc, drill_locations = [(i,j) for i=3:7:31 for j=3:7:31])
 
 # Load the ore maps
-s_all = imresize(h5read("planning/data/ore_maps.hdf5", "X"), (32,32))
-s_test = imresize(h5read("planning/data/test_ore_maps.hdf5", "X"), (32,32))
+s_all = imresize(h5read("50x50/ore_maps.hdf5", "X"), (32,32))
+s_test = imresize(h5read("50x50/test_ore_maps.hdf5", "X"), (32,32))
 
 # Load the trials states
 Ntrials = config["Ntrials"]
@@ -41,6 +43,25 @@ function particle_set(Nparticles)
     return [MinExState(s_all[:,:,i]) for i in indices]
 end
 
+function get_next_action(problem, b, h)
+    # Get the set of children from the current node
+    tried_idxs = h.tree.children[h.index]
+    drill_locations = undrilled_locations(problem, b)
+    if length(tried_idxs) == 0 # First visit, try abandon
+        return :abandon
+    elseif length(drill_locations) == 0 || length(tried_idxs) == 1 # Second visit, try mine
+        return :mine
+    elseif length(tried_idxs) - 1 <= length(drill_locations) # Third visit, try max variance location
+        px = [[i, j] for (i,j) in drill_locations]
+        μ, σ = mean_and_var(b.model(px))
+        μ_1σ = μ .+ σ
+        sorted_perm = sortperm(μ_1σ; rev=true)
+        return drill_locations[sorted_perm[length(tried_idxs)-1]]
+    else # 4+ visit, try drilling
+        return rand(drill_locations)
+    end
+end
+
 # Setup the belief, updater and policy for each type of trial
 if config["trial_type"] == "random"
     up = NothingUpdater()
@@ -50,7 +71,7 @@ elseif config["trial_type"] == "pomcpow"
     Nparticles = config["Nparticles"]
     b0 = ParticleCollection(particle_set(Nparticles))
     up = BootstrapFilter(m, Nparticles)
-    solver = POMCPOWSolver(next_action=MinExActionSampler(), 
+    solver = POMCPOWSolver(next_action=MinExActionSampler(),
                            estimate_value=(pomdp, s, h, steps) -> isterminal(pomdp, s) ? 0 : max(0, extraction_reward(pomdp, s)),
                            criterion=POMCPOW.MaxUCB(config["exploration_constant"]),
                            tree_queries=config["tree_queries"],
@@ -65,7 +86,7 @@ elseif config["trial_type"] == "DGM_tree_search"
     up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, (32,32)) # TODO: remove input size
     b0 = initialize_belief(up, nothing)
     bmdp = GenerativeBeliefMDP{typeof(m), typeof(up), typeof(b0), actiontype(m)}(m, up)
-    solver = DPWSolver(next_action=MinExActionSampler(), 
+    solver = DPWSolver(next_action=MinExActionSampler(),
                        estimate_value=DGM_value_est,
                        n_iterations=config["tree_queries"],
                        exploration_constant=config["exploration_constant"],
@@ -76,6 +97,24 @@ elseif config["trial_type"] == "DGM_tree_search"
                        tree_in_info=true,
                        )
     policy = POMDPs.solve(solver, bmdp)
+elseif config["trial_type"] == "GP_tree_search"
+    up = GenerativeGPBeliefUpdater(m, (32,32), config["model_config"], config["init_drill_threshold"])
+    b0 = initialize_belief(up, nothing)
+    bmdp = GenerativeBeliefMDP{typeof(m), typeof(up), typeof(b0), actiontype(m)}(m, up)
+    solver = DPWSolver(
+        estimate_value=GP_value_est,
+        next_action=get_next_action,
+        depth=config["depth"],
+        n_iterations=config["tree_queries"],
+        exploration_constant=config["exploration_constant"],
+        k_action=config["k_action"],
+        alpha_action=config["alpha_action"],
+        k_state=config["k_state"],
+        alpha_state=config["alpha_state"],
+        tree_in_info=false,
+        show_progress=true
+    )
+    policy = POMDPs.solve(solver, bmdp)
 elseif config["trial_type"] == "PF_VOI"
     Nparticles = config["Nparticles"]
     b0 = ParticleCollection(particle_set(Nparticles))
@@ -85,6 +124,14 @@ elseif config["trial_type"] == "PF_VOI_Multi"
     Nparticles = config["Nparticles"]
     b0 = ParticleCollection(particle_set(Nparticles))
     up = BootstrapFilter(m, Nparticles)
+    policy = VOIMultiActionPolicy(m, up, config["Nobs_VOI"], config["Nsamples_est_VOI"], config["N_mc_actions_VOI"])
+elseif config["trial_type"] == "GP_VOI"
+    up = GenerativeGPBeliefUpdater(m, (32,32), config["model_config"], config["init_drill_threshold"])
+    b0 = initialize_belief(up, nothing)
+    policy = VOIPolicy(m, up, config["Nobs_VOI"], config["Nsamples_est_VOI"])
+elseif config["trial_type"] == "GP_VOI_Multi"
+    up = GenerativeGPBeliefUpdater(m, (32,32), config["model_config"], config["init_drill_threshold"])
+    b0 = initialize_belief(up, nothing)
     policy = VOIMultiActionPolicy(m, up, config["Nobs_VOI"], config["Nsamples_est_VOI"], config["N_mc_actions_VOI"])
 elseif config["trial_type"] == "DGM_VOI"
     up = GenerativeMEBeliefUpdater(config["model_config"], config["model_ckpt"], m, (32,32))
@@ -106,5 +153,5 @@ for (i,s0) in enumerate(s0_trial)
 
     # Save all results after every iteration
     println("Saving trial $i of $name...")
-    JLD2.save("$(config["savefolder"])/results_$name.jld2", Dict("results" => results)) 
+    JLD2.save("$(config["savefolder"])/results_$name.jld2", Dict("results" => results))
 end
