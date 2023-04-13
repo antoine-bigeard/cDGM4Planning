@@ -30,26 +30,35 @@ class LitModel1d(pl.LightningModule):
         self.n_samples_hist = n_samples_hist
         self.metrics = metrics
 
-    # def on_fit_start(self) -> None:
-    #     val_fig_batch = [
-    #         self.trainer.datamodule.val_dataset[i]
-    #         for i in range(self.validation_x_shape[0])
-    #     ]
-    #     self.validation_x, self.validation_y = (
-    #         torch.cat(
-    #             [
-    #                 torch.tensor(val_fig_batch[i][0]).unsqueeze(0)
-    #                 for i in range(len(val_fig_batch))
-    #             ]
-    #         ),
-    #         torch.cat(
-    #             [
-    #                 torch.tensor(val_fig_batch[i][1]).unsqueeze(0)
-    #                 for i in range(len(val_fig_batch))
-    #             ]
-    #         ),
-    #     )
-    #     self.y_1_idxs = get_idx_val_2D(self.validation_y)
+    def on_fit_start(self) -> None:
+        val_fig_batch = [
+            self.trainer.datamodule.val_dataset[i]
+            for i in range(self.validation_x_shape[0])
+        ]
+        self.validation_x, self.validation_y = collate_fn_for_trans(val_fig_batch)
+        # self.validation_x = (
+        #     val_fig_batch[0][0][0].unsqueeze(0),
+        #     val_fig_batch[0][0][1].unsqueeze(0),
+        # )
+        # self.validation_y = (
+        #     val_fig_batch[0][1][0].unsqueeze(0),
+        #     val_fig_batch[0][1][1].unsqueeze(0),
+        # )
+        # self.validation_x, self.validation_y = (
+        #     torch.cat(
+        #         [
+        #             torch.tensor(val_fig_batch[i][0]).unsqueeze(0)
+        #             for i in range(len(val_fig_batch))
+        #         ]
+        #     ),
+        #     torch.cat(
+        #         [
+        #             torch.tensor(val_fig_batch[i][1]).unsqueeze(0)
+        #             for i in range(len(val_fig_batch))
+        #         ]
+        #     ),
+        # )
+        # self.y_1_idxs = get_idx_val_2D(self.validation_y)
 
     def on_test_start(self):
         self.dict_metrics_paths = defaultdict(dict)
@@ -170,6 +179,225 @@ class LitModel1d(pl.LightningModule):
                     ][i]
 
 
+class LitDDPM1dSeq2Seq(LitModel1d):
+    def __init__(
+        self,
+        ddpm=UNet_conditional2d,
+        conf_ddpm={
+            "c_in": 3,
+            "c_out": 128,
+            "time_dim": 256,
+        },
+        diffusion=Diffusion2d,
+        conf_diffusion: dict = {
+            "noise_steps": 1000,
+            "beta_start": 1e-4,
+            "beta_end": 0.02,
+            "surf_size": 256,
+        },
+        ema=EMA2d,
+        conf_ema={"beta": 0.995},
+        lr: float = 0.0002,
+        b1: float = 0.5,
+        b2: float = 0.999,
+        validation_x_shape: np.ndarray = [5, 51, 1],
+        log_dir: str = "",
+        use_rd_y: bool = True,
+        batch_size=512,
+        n_sample_for_metric: int = 100,
+        latent_dim=20,
+        cfg_scale: int = 3,
+        sequential_cond: bool = False,
+        encoding_layer=ConditionEncoding,
+        conf_encoding_layer={},
+    ):
+        super().__init__()
+        self.save_hyperparameters()
+        self.sequential_cond = sequential_cond
+        self.encoding_layer = None
+        if self.sequential_cond:
+            self.conf_encoding_layer = conf_encoding_layer
+            self.encoding_layer = encoding_layer(**conf_encoding_layer).cuda()
+            # self.encoding_layer = ConditionEncoding(
+            #     input_size=128, hidden_size=128, num_layers=1, batch_first=True
+            # ).cuda()
+
+        # instantiate models
+        self.conf_ddpm = conf_ddpm
+        self.model = ddpm(**self.conf_ddpm, encoding_layer=self.encoding_layer)
+        self.conf_diffusion = conf_diffusion
+        self.diffusion = diffusion(**self.conf_diffusion)
+        self.conf_ema = conf_ema
+        self.ema = ema(**self.conf_ema)
+        self.ema_model = copy.deepcopy(self.model).eval().requires_grad_(False)
+        self.cfg_scale = cfg_scale
+
+        self.latent_dim = latent_dim
+        self.lr = lr
+        self.b1 = b1
+        self.b2 = b2
+        self.validation_x_shape = validation_x_shape
+        self.log_dir = log_dir
+        self.use_rd_y = use_rd_y
+        self.batch_size = batch_size
+        self.n_sample_for_metric = n_sample_for_metric
+
+        self.inference_model = lambda labels: self.diffusion.sample(
+            self.model,
+            labels=labels,
+            cfg_scale=self.cfg_scale,
+        )
+
+        self.validation_z = torch.randn(
+            self.validation_x_shape[0], self.latent_dim, device=self.device
+        )
+
+        self.current_training_step = 0
+        self.current_validation_step = 0
+
+        self.mse_loss = nn.MSELoss(reduction="none")
+
+    def loss_fn(self, recon_x, x):
+        return F.mse_loss(recon_x, x)
+
+    def inference(self, conditions):
+        with torch.inference_mode():
+            return self.diffusion.sample(
+                self.model,
+                labels=conditions,
+                cfg_scale=self.cfg_scale,
+            )
+
+    def training_step(self, batch, batch_idx):
+        (surfaces, surfaces_padding_mask), (
+            observations,
+            observations_padding_mask,
+        ) = batch
+        # y = torch.ones_like(y)
+
+        t = self.diffusion.sample_timesteps(surfaces.shape[0]).to(self.device)
+        surfaces_t, noise = self.diffusion.noise_images(surfaces, t)
+
+        predicted_noise = self.model(
+            surfaces_t,
+            observations,
+            surfaces,
+            t,
+            src_padding_mask=surfaces_padding_mask,
+            tgt_padding_mask=surfaces_padding_mask,
+        )[:, 1:, :, :]
+
+        loss = self.mse_loss(noise, predicted_noise)
+        loss = (
+            loss * surfaces_padding_mask.unsqueeze(-1).unsqueeze(-1)
+        ).sum() / surfaces_padding_mask.sum()
+
+        self.ema.step_ema(self.ema_model, self.model)
+        self.log("train/loss", loss, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        (surfaces, surfaces_padding_mask), (
+            observations,
+            observations_padding_mask,
+        ) = batch
+        # y = torch.ones_like(y)
+
+        t = self.diffusion.sample_timesteps(surfaces.shape[0]).to(self.device)
+        surfaces_t, noise = self.diffusion.noise_images(surfaces, t)
+
+        predicted_noise = self.model(
+            surfaces_t,
+            observations,
+            surfaces,
+            t,
+            src_padding_mask=surfaces_padding_mask,
+            tgt_padding_mask=surfaces_padding_mask,
+        )[:, 1:, :, :]
+
+        loss = self.mse_loss(noise, predicted_noise)
+        loss = (
+            loss * surfaces_padding_mask.unsqueeze(-1).unsqueeze(-1)
+        ).sum() / surfaces_padding_mask.sum()
+
+        self.log("val/loss", loss, prog_bar=True)
+        self.ema.step_ema(self.ema_model, self.model)
+
+        self.current_validation_step += 1
+        return loss
+
+    def configure_optimizers(self):
+        opt = torch.optim.Adam(
+            self.model.parameters(), lr=self.lr, betas=(self.b1, self.b2)
+        )
+        return opt
+
+    def on_train_epoch_start(self) -> None:
+        img_dir = os.path.join(self.log_dir, f"epoch_{self.current_epoch}")
+        os.makedirs(img_dir, exist_ok=True)
+        # log sampled images
+        sample_surfaces = []
+        for s in range(self.validation_x[0].size(0)):
+            sample_surfaces.append(
+                self.diffusion.sample(
+                    self.model,
+                    # observations=torch.cat(
+                    #     [self.validation_y[s].unsqueeze(0)]
+                    #     * self.validation_x[0].size(0),
+                    #     0,
+                    # ).cuda(),
+                    observations=self.validation_y[0],
+                    cfg_scale=self.cfg_scale,
+                )
+            )
+
+        figs = create_figs_1D_seq_spillpoint(
+            sample_surfaces,
+            conditions=None,
+            img_dir=img_dir,
+            save=True,
+        )
+
+        # sample_surfaces_seq = []
+        # for s in range(self.validation_x.size(0)):
+        #     seq = []
+        #     # find indexes in the sequence self.validation_y[s] that are not zero tensor
+        #     len_seq = torch.nonzero(self.validation_y[s], as_tuple=True)[s].max().item()
+
+        #     for k in range(1, len_seq):
+        #         seq.append(
+        #             self.diffusion.sample(
+        #                 self.model,
+        #                 labels=torch.cat(
+        #                     [self.validation_y[s, :k].unsqueeze(0)]
+        #                     * self.validation_x.size(0),
+        #                     0,
+        #                 ).cuda(),
+        #                 cfg_scale=self.cfg_scale,
+        #             )
+        #         )
+        #     sample_surfaces_seq.append(seq)
+
+        # figs = create_figs_1D_seq_spillpoint(
+        #     sample_surfaces_seq,
+        #     conditions=None,
+        #     img_dir=img_dir,
+        #     save=True,
+        # )
+
+        # figs = create_figs_2D(
+        #     sample_surfaces,
+        #     self.y_1_idxs,
+        #     img_dir,
+        #     save=True,
+        #     sequential_cond=self.sequential_cond,
+        # )
+        # for i, fig in enumerate(figs):
+        #     self.logger.experiment.add_figure(
+        #         f"generated_image_{i}", fig, self.current_epoch
+        #     )
+
+
 class LitDDPM1d(LitModel1d):
     def __init__(
         self,
@@ -246,6 +474,8 @@ class LitDDPM1d(LitModel1d):
         self.current_training_step = 0
         self.current_validation_step = 0
 
+        self.mse_loss = nn.MSELoss(reduction="none")
+
     def loss_fn(self, recon_x, x):
         return F.mse_loss(recon_x, x)
 
@@ -258,15 +488,20 @@ class LitDDPM1d(LitModel1d):
             )
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        (surfaces, surfaces_padding_mask), (
+            observations,
+            observations_padding_mask,
+        ) = batch
         if self.use_rd_y:
-            y = random_observation_ore_maps(x).to(self.device)
+            y = random_observation_ore_maps(surfaces).to(self.device)
 
-        t = self.diffusion.sample_timesteps(x.shape[0]).to(self.device)
-        x_t, noise = self.diffusion.noise_images(x, t)
+        t = self.diffusion.sample_timesteps(surfaces.shape[0]).to(self.device)
+        surfaces_t, noise = self.diffusion.noise_images(surfaces, t)
         if self.cfg_scale > 0 and np.random.random() < 0.1:
             y = None
-        predicted_noise = self.model(x_t, t, y)
+        predicted_noise = self.model(
+            surfaces_t, t, observations, src_padding_mask=observations_padding_mask
+        )
         loss = F.mse_loss(noise, predicted_noise)
 
         self.ema.step_ema(self.ema_model, self.model)
@@ -274,15 +509,20 @@ class LitDDPM1d(LitModel1d):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
+        (surfaces, surfaces_padding_mask), (
+            observations,
+            observations_padding_mask,
+        ) = batch
         if self.use_rd_y:
-            y = random_observation_ore_maps(x).to(self.device)
+            y = random_observation_ore_maps(surfaces).to(self.device)
 
-        t = self.diffusion.sample_timesteps(x.shape[0]).to(self.device)
-        x_t, noise = self.diffusion.noise_images(x, t)
+        t = self.diffusion.sample_timesteps(surfaces.shape[0]).to(self.device)
+        surfaces_t, noise = self.diffusion.noise_images(surfaces, t)
         if self.cfg_scale > 0 and np.random.random() < 0.1:
             y = None
-        predicted_noise = self.model(x_t, t, y)
+        predicted_noise = self.model(
+            surfaces_t, t, observations, src_padding_mask=observations_padding_mask
+        )
         loss = F.mse_loss(noise, predicted_noise)
         self.log("val/loss", loss, prog_bar=True)
 
@@ -302,26 +542,74 @@ class LitDDPM1d(LitModel1d):
         os.makedirs(img_dir, exist_ok=True)
         # log sampled images
         sample_surfaces = []
-        for s in range(self.validation_x.size(0)):
+        for s in range(self.validation_x[0].size(0)):
             sample_surfaces.append(
                 self.diffusion.sample(
                     self.model,
                     labels=torch.cat(
-                        [self.validation_y[s].unsqueeze(0)] * self.validation_x.size(0),
+                        [self.validation_y[0][s].unsqueeze(0)]
+                        * self.validation_x[0].size(0),
                         0,
                     ).cuda(),
                     cfg_scale=self.cfg_scale,
+                    labels_padding_masks=torch.cat(
+                        [self.validation_y[1][s].unsqueeze(0)]
+                        * self.validation_x[0].size(0),
+                        0,
+                    ).cuda(),
                 )
             )
 
-        figs = create_figs_2D(
+        figs = create_figs_1D_spillpoint(
             sample_surfaces,
-            self.y_1_idxs,
-            img_dir,
+            conditions=None,
+            img_dir=img_dir,
             save=True,
-            sequential_cond=self.sequential_cond,
+            sequential_cond=True,
         )
-        for i, fig in enumerate(figs):
-            self.logger.experiment.add_figure(
-                f"generated_image_{i}", fig, self.current_epoch
+
+        sample_surfaces_seq = []
+        for s in range(self.validation_x[0].size(0)):
+            seq = []
+            # find indexes in the sequence self.validation_y[s] that are not zero tensor
+            len_seq = (
+                torch.nonzero(self.validation_y[0][s], as_tuple=True)[s].max().item()
             )
+
+            for k in range(1, len_seq):
+                seq.append(
+                    self.diffusion.sample(
+                        self.model,
+                        labels=torch.cat(
+                            [self.validation_y[0][s, :k].unsqueeze(0)]
+                            * self.validation_x[0].size(0),
+                            0,
+                        ).cuda(),
+                        cfg_scale=self.cfg_scale,
+                        labels_padding_masks=torch.cat(
+                            [self.validation_y[1][s, :k].unsqueeze(0)]
+                            * self.validation_x[0].size(0),
+                            0,
+                        ).cuda(),
+                    )
+                )
+            sample_surfaces_seq.append(seq)
+
+        figs = create_figs_1D_seq_spillpoint(
+            sample_surfaces_seq,
+            conditions=None,
+            img_dir=img_dir,
+            save=True,
+        )
+
+        # figs = create_figs_2D(
+        #     sample_surfaces,
+        #     self.y_1_idxs,
+        #     img_dir,
+        #     save=True,
+        #     sequential_cond=self.sequential_cond,
+        # )
+        # for i, fig in enumerate(figs):
+        #     self.logger.experiment.add_figure(
+        #         f"generated_image_{i}", fig, self.current_epoch
+        #     )

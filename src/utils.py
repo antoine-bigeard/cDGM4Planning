@@ -10,13 +10,107 @@ import matplotlib.pyplot as plt
 import os
 import seaborn as sns
 import random as rd
+import seaborn as sns
+from tqdm import tqdm
+
+sns.set_theme()
 
 import collections.abc
+
+
+def create_figs_1D_spillpoint(
+    sample_surfaces, conditions, img_dir, save=True, sequential_cond=True
+):
+
+    for i in range(len(sample_surfaces)):
+        out_img_path_dir = os.path.join(img_dir, f"test_{i}")
+        os.makedirs(out_img_path_dir, exist_ok=True)
+        for j in range(sample_surfaces[i].size(0)):
+            out_img_path = os.path.join(out_img_path_dir, f"sample_{j}.png")
+            plt.figure()
+            x = range(sample_surfaces[i].size(2))
+            # top_surface = sample_surfaces[i][j, 0, :].detach().cpu().squeeze()
+            top_surface = sample_surfaces[i][j, 1, :].detach().cpu().squeeze()
+            co2_level = sample_surfaces[i][j, 4, :].detach().cpu().squeeze()
+            porosity = sample_surfaces[i][j, 2, :].detach().cpu().squeeze()
+            scatter = plt.scatter(
+                [i for i in range(len(porosity))],
+                [max(top_surface) + 0.5] * len(porosity),
+                c=porosity,
+            )
+            cbar = plt.colorbar(scatter, orientation="horizontal")
+            plt.plot(x, top_surface, color="black", label="top surface")
+            plt.fill_between(
+                x,
+                top_surface,
+                top_surface - co2_level,
+                color="blue",
+                alpha=0.8,
+                label="CO2",
+            )
+            injector_pos = int(
+                torch.argmax(sample_surfaces[i][j, 3, :].detach().cpu())
+                .detach()
+                .cpu()
+                .squeeze()
+            )
+            plt.scatter([injector_pos], [top_surface[injector_pos]], s=25, c="r")
+            plt.savefig(out_img_path)
+
+
+def create_figs_1D_seq_spillpoint(samples_surfaces_seq, conditions, img_dir, save=True):
+    global_img_dir = img_dir
+    for k, sample_surfaces in enumerate(samples_surfaces_seq):
+        img_dir = os.path.join(global_img_dir, f"seq_{k}")
+        for i in range(len(sample_surfaces)):
+            out_img_path_dir = os.path.join(img_dir, f"step_{i}")
+            os.makedirs(out_img_path_dir, exist_ok=True)
+            for j in range(sample_surfaces[i].size(0)):
+                out_img_path = os.path.join(out_img_path_dir, f"sample_{j}.png")
+                plt.figure()
+                x = range(sample_surfaces[i].size(2))
+                # top_surface = sample_surfaces[i][j, 0, :].detach().cpu().squeeze()
+                top_surface = sample_surfaces[i][j, 1, :].detach().cpu().squeeze()
+                co2_level = sample_surfaces[i][j, 4, :].detach().cpu().squeeze()
+                porosity = sample_surfaces[i][j, 2, :].detach().cpu().squeeze()
+                scatter = plt.scatter(
+                    [i for i in range(len(porosity))],
+                    [max(top_surface) + 0.5] * len(porosity),
+                    c=porosity,
+                )
+                cbar = plt.colorbar(scatter, orientation="horizontal")
+                plt.plot(x, top_surface, color="black", label="top surface")
+                plt.fill_between(
+                    x,
+                    top_surface,
+                    top_surface - co2_level,
+                    color="blue",
+                    alpha=0.8,
+                    label="CO2",
+                )
+                injector_pos = int(
+                    torch.argmax(sample_surfaces[i][j, 3, :].detach().cpu())
+                    .detach()
+                    .cpu()
+                    .squeeze()
+                )
+                plt.scatter([injector_pos], [top_surface[injector_pos]], s=25, c="r")
+                plt.savefig(out_img_path)
+
+
+def merge_actions_observations(actions, observations):
+    merged = []
+    for i in range(len(actions)):
+        merged.append(
+            torch.cat([torch.Tensor(actions[i]), torch.Tensor(observations[i])], dim=1)
+        )
+    return merged
 
 
 def padding_data(conditions):
     max_len_seq = max([len(cond) for cond in conditions])
     pad_cond = []
+    pad_mask = []
     for cond in conditions:
         cond = torch.Tensor(cond)
         pad_cond.append(
@@ -24,7 +118,22 @@ def padding_data(conditions):
                 [cond, torch.zeros([max_len_seq - cond.size(0)] + list(cond[0].shape))]
             )
         )
-    return torch.stack(pad_cond)
+        pad_mask.append(
+            torch.cat(
+                [torch.zeros(cond.size(0)), torch.ones(max_len_seq - cond.size(0))]
+            )
+        )
+    return torch.stack(pad_cond), torch.stack(pad_mask)
+
+
+def collate_fn_for_trans(batch):
+    tgt = []
+    src = []
+    for sample in batch:
+        tgt_sample, src_sample = sample[0], sample[1]
+        tgt.append(tgt_sample)
+        src.append(src_sample)
+    return padding_data(tgt), padding_data(src)
 
 
 def update(d, u):

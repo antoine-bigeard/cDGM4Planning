@@ -4,6 +4,8 @@ mode: fit
 
 datamodule:
   path_data_json: data/spillpoint_train.json
+  # path_surfaces_h5py: data/surfaces64.hdf5
+  # path_observations_h5py: data/observations64.hdf5
   batch_size: 100
   shuffle_data: True
   num_workers: 4
@@ -17,7 +19,7 @@ lit_model_type: LitDDPM1d
 lit_model:
   diffusion: Diffusion
   conf_diffusion:
-    noise_steps: 250
+    noise_steps: 500
     beta_start: 0.0001
     beta_end: 0.02
     surf_size: 32
@@ -26,22 +28,23 @@ lit_model:
     c_in: 13
     c_out: 5
     time_dim: 256
+    conditional: True
   ema: EMA
   conf_ema:
     beta: 0.995
   encoding_layer: Transformer4Input
   conf_encoding_layer:
     dim_model: 256
-    num_heads: 8
-    num_encoder_layers: 2
-    num_decoder_layers: 2
+    num_heads: 2
+    num_encoder_layers: 1
+    num_decoder_layers: 1
     dropout: 0.1
     resolution: 32
   lr: 0.0002
   b1: 0.5
   b2: 0.999
   latent_dim: 20
-  validation_x_shape: [3, 1, 32, 32]
+  validation_x_shape: [3, 1, 64]
   use_rd_y: False
   batch_size: 100
   cfg_scale: 0

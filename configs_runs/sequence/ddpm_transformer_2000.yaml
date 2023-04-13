@@ -1,0 +1,73 @@
+name_experiment: sequence_test
+seed: 1234
+mode: fit
+
+datamodule:
+  path_data_json: data/spillpoint_train.json
+  # path_surfaces_h5py: data/surfaces64.hdf5
+  # path_observations_h5py: data/observations64.hdf5
+  batch_size: 100
+  shuffle_data: True
+  num_workers: 4
+  pct_train: 0.95
+  pct_val: 0.05
+  pct_test: 0
+  two_dimensional: False
+  sequential_cond: True
+
+lit_model_type: LitDDPM1d
+lit_model:
+  diffusion: Diffusion
+  conf_diffusion:
+    noise_steps: 2000
+    beta_start: 0.0001
+    beta_end: 0.02
+    surf_size: 32
+  ddpm: UNet_conditional
+  conf_ddpm:
+    c_in: 13
+    c_out: 5
+    time_dim: 256
+    conditional: True
+  ema: EMA
+  conf_ema:
+    beta: 0.995
+  encoding_layer: Transformer4Input
+  conf_encoding_layer:
+    dim_model: 256
+    num_heads: 2
+    num_encoder_layers: 1
+    num_decoder_layers: 1
+    dropout: 0.1
+    resolution: 32
+  lr: 0.0002
+  b1: 0.5
+  b2: 0.999
+  latent_dim: 20
+  validation_x_shape: [3, 1, 64]
+  use_rd_y: False
+  batch_size: 100
+  cfg_scale: 0
+  n_sample_for_metric: 100
+  sequential_cond: True
+
+trainer:
+  auto_lr_find: False                     
+  min_epochs: 1                             
+  max_epochs: 50                        
+  fast_dev_run: false                   
+  accelerator: gpu
+  devices: [1]
+  log_every_n_steps: 10                 
+
+tensorboard_logs:
+  save_dir: logs                          
+#   name: test_res_inject
+
+checkpoint_callback:                
+  monitor: val/loss                     
+  mode: min                               
+  save_last: True                     
+  filename: best-checkpoint                  
+
+checkpoint_path: null
