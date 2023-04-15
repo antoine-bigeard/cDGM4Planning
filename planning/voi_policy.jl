@@ -77,7 +77,7 @@ function POMDPs.action(pol::VOIPolicy, b)
         # Generate observations and rewards from our set of states
         samps = [@gen(:o, :r)(pol.m, s, a) for s in ss]
 
-        # For each observation, do an update and store the belief and reward
+        # For each observation, do an update
         bps = [update(pol.up, b, a, o) for (o,_) in samps]
         if pol.batch_sampling
             push!(beliefs_per_action, bps)

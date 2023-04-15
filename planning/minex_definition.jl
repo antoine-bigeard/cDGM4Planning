@@ -23,6 +23,8 @@ mutable struct MinExState
     MinExState(ore, drill_locations=[]) = new(ore, drill_locations)
 end
 
+Base.copy(s::MinExState) = MinExState(s.ore, deepcopy(s.drill_locations))
+
 POMDPs.discount(m::MinExPOMDP) = m.γ
 
 
@@ -51,21 +53,19 @@ end
 
 # This gen function is for passing multiple drilling actions
 function POMDPs.gen(m::MinExPOMDP, s, as::Vector{Tuple{Int, Int}}, rng)
-    sp = deepcopy(s)
     rtot = 0
     os = Float64[]
     for a in as
-        push!(sp.drill_locations, a)
-        _, o, r = gen(m, s, a, rng)
+        s, o, r = gen(m, s, a, rng)
         push!(os, o)
         rtot += r
     end
-    return (;sp, o=os, r=rtot)
+    return (;sp=s, o=os, r=rtot)
 end
 
 function POMDPs.gen(m::MinExPOMDP, s, a, rng)
     # Compute the next state
-    sp = (a in m.terminal_actions || isterminal(m, s)) ? :terminal : deepcopy(s)
+    sp = (a in m.terminal_actions || isterminal(m, s)) ? :terminal : copy(s)
     
     # Compute the reward
     if a == :abandon || isterminal(m, s)
@@ -90,7 +90,7 @@ end
 # Function for handling vector of actions (and therefore vector of observations)
 function POMDPTools.obs_weight(m::MinExPOMDP, s, a::Vector{Tuple{Int64, Int64}}, sp, o::Vector{Float64})
     w = 1.0
-    for (a_i, o_i) in zip(a, o)
+    @elapsed for (a_i, o_i) in zip(a, o)
         w *= obs_weight(m, s, a_i, sp, o_i)
     end
     return w
