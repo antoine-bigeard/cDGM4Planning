@@ -22,37 +22,16 @@ struct VOIPolicy <: Policy
     Nobs
     Nsamples_est
     action_fn
-    VOIPolicy(m, up, Nobs=10, Nsamples_est=10, action_fn=(b)->actions(m, b)) = new(m, up, Nobs, Nsamples_est, action_fn)
+    batch_sampling
+    VOIPolicy(m, up, Nobs=10, Nsamples_est=10, action_fn=(b)->actions(m, b), batch_sampling=false) = new(m, up, Nobs, Nsamples_est, action_fn, batch_sampling)
+    VOIPolicy(m, up::GenerativeMEBeliefUpdater, Nobs=10, Nsamples_est=10, action_fn=(b)->actions(m, b), batch_sampling=true) = new(m, up, Nobs, Nsamples_est, action_fn, batch_sampling)
 end
 VOIMultiActionPolicy(m, up, Nobs=10, Nsamples_est=10, N_mc_actions=100, action_fn=(b)->mc_multi_actions(m, b, N_mc_actions)) = VOIPolicy(m, up, Nobs, Nsamples_est, action_fn)
 
 Base.rand(b::ParticleCollection, N::Int) = [rand(b) for _=1:N]
 
-# Default Implementation for the particle filter and other belief types
-# beliefs_per_action is an array where the index corresponds to the action and the elements are vectors of beliefs
-# Nsamples is the number of samples to draw from each and every belief
-function gen_belief_samples(beliefs_per_action, Nsamples)
-    # We will construct a 3x nested array where the top index is action, followed by belief, followed by sample
-    sps_per_belief_per_action = []
-
-    # We start by looping over actions and pulling out the array of beliefs for that action
-    for beliefs in beliefs_per_action
-        # We will construct a 2x nested array where the top index is belief, followed by sample
-        sps_per_belief = []
-        for b in beliefs
-            # Sample Nsamples from this belief (creates an array of samples)
-            sps = rand(b, Nsamples)
-            # Push that array of samples back to our 2x nested array
-            push!(sps_per_belief, sps)
-        end
-        # Push the 2x nested array back to our 3x nested array
-        push!(sps_per_belief_per_action, sps_per_belief)
-    end
-    return sps_per_belief_per_action
-end
-
 # This implementation is optimized for the deep generative model
-function gen_belief_samples(beliefs_per_action::Vector{Vector{GenerativeMEBelief}}, Nsamples)
+function batchgen_belief_samples(beliefs_per_action::Vector{Vector{GenerativeMEBelief}}, Nsamples)
     # Flatten the set of beliefs
     beliefs = vcat(beliefs_per_action...)
 
@@ -91,23 +70,38 @@ function POMDPs.action(pol::VOIPolicy, b)
     drill_actions = setdiff(pol.action_fn(b), [:abandon, :mine])
     
     beliefs_per_action = []
+    sps_per_belief_per_action = []
     rewards_per_action = []
     for a in drill_actions
         println("actions: ", a, " out of, ", length(drill_actions))
         # Generate observations and rewards from our set of states
         samps = [@gen(:o, :r)(pol.m, s, a) for s in ss]
 
-        # For each observation, do an update and store the belief and reward
+        # For each observation, do an update
         bps = [update(pol.up, b, a, o) for (o,_) in samps]
+        if pol.batch_sampling
+            push!(beliefs_per_action, bps)
+        else
+            # We will construct a 2x nested array where the top index is belief, followed by sample
+            sps_per_belief = []
+            for b in bps
+                # Sample Nsamples from this belief (creates an array of samples)
+                sps = rand(b, pol.Nsamples_est)
+                # Push that array of samples back to our 2x nested array
+                push!(sps_per_belief, sps)
+            end
+            # Push the 2x nested array back to our 3x nested array
+            push!(sps_per_belief_per_action, sps_per_belief)
+        end
         rs = [r for (_,r) in samps]
-        push!(beliefs_per_action, bps)
         push!(rewards_per_action,  rs)
     end
 
     # Process the samples to compute the value of each action
-    println("generating samples from beliefs...")
-    beliefs_per_action = [beliefs_per_action...]
-    sps_per_belief_per_action = gen_belief_samples(beliefs_per_action, pol.Nsamples_est)
+    if pol.batch_sampling
+        beliefs_per_action = [beliefs_per_action...]
+        sps_per_belief_per_action = batchgen_belief_samples(beliefs_per_action, pol.Nsamples_est)
+    end
     values_per_action = []
     for ai=1:length(drill_actions)
         sps_per_belief = sps_per_belief_per_action[ai]
