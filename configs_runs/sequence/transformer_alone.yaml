@@ -1,0 +1,63 @@
+name_experiment: transformer_alone&
+seed: 1234
+mode: fit
+
+datamodule:
+  path_data_json: data/spillpoint_train.json
+  # path_surfaces_h5py: data/surfaces64.hdf5
+  # path_observations_h5py: data/observations64.hdf5
+  batch_size: 50
+  shuffle_data: True
+  num_workers: 4
+  pct_train: 0.95
+  pct_val: 0.05
+  pct_test: 0
+  two_dimensional: False
+  sequential_cond: True
+  sequential_surfaces: True
+
+lit_model_type: LitTransformer
+lit_model:
+  transformer: TransformerAlone
+  conf_transformer:
+    in_channels: 8
+    out_channels: 5
+    resolution: 32
+    dim_model: 256
+    num_heads: 8
+    num_encoder_layers: 2
+    num_decoder_layers: 2
+    dropout: 0.1
+    dim_feed_forward: 2048
+    time_dim: 256
+    encoding_layer: null
+    conditional: True
+  lr: 0.0002
+  b1: 0.5
+  b2: 0.999
+  latent_dim: 20
+  validation_x_shape: [1, 1, 64]
+  batch_size: 100
+  n_sample_for_metric: 100
+  sequential_cond: True
+
+trainer:
+  auto_lr_find: False                     
+  min_epochs: 1                             
+  max_epochs: 50                        
+  fast_dev_run: false                   
+  accelerator: gpu
+  devices: [1]
+  log_every_n_steps: 10                 
+
+tensorboard_logs:
+  save_dir: logs                          
+#   name: test_res_inject
+
+checkpoint_callback:                
+  monitor: val/loss                     
+  mode: min                               
+  save_last: True                     
+  filename: best-checkpoint                  
+
+checkpoint_path: null

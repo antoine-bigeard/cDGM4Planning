@@ -18,7 +18,6 @@ import torch
 
 
 def main(config):
-
     mode = config["mode"]
     checkpoint_path = config.get("checkpoint_path")
     conf_datamodule = config.get("datamodule")
@@ -48,7 +47,10 @@ def main(config):
     # configure data module
     datamodule = MyDataModule(**conf_datamodule)
 
-    lit_model = instantiate_lit_model(config, logs_folder=logs_folder)
+    lit_model = instantiate_lit_model(
+        config,
+        logs_folder=logs_folder,
+    )
 
     # load trained model if checkpoutint is given
     if checkpoint_path is not None:
@@ -101,7 +103,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="configs_runs/sequence/denoising_transformer.yaml",
+        default="configs_runs/sequence/transformer_alone.yaml",
         required=False,
     )
 

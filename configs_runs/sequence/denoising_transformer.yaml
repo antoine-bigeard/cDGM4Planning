@@ -3,7 +3,7 @@ seed: 1234
 mode: fit
 
 datamodule:
-  path_data_json: data/spillpoint_train_all_seq.json
+  path_data_json: data/spillpoint_train.json
   # path_surfaces_h5py: data/surfaces64.hdf5
   # path_observations_h5py: data/observations64.hdf5
   batch_size: 100

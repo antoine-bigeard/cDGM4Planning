@@ -21,7 +21,6 @@ import collections.abc
 def create_figs_1D_spillpoint(
     sample_surfaces, conditions, img_dir, save=True, sequential_cond=True
 ):
-
     for i in range(len(sample_surfaces)):
         out_img_path_dir = os.path.join(img_dir, f"test_{i}")
         os.makedirs(out_img_path_dir, exist_ok=True)
@@ -58,8 +57,12 @@ def create_figs_1D_spillpoint(
             plt.savefig(out_img_path)
 
 
-def create_figs_1D_seq_spillpoint(samples_surfaces_seq, conditions, img_dir, save=True):
+def create_figs_1D_seq_spillpoint(
+    samples_surfaces_seq, conditions=None, img_dir=None, save=True
+):
     global_img_dir = img_dir
+    if conditions is not None:
+        real_pos_injector = 1
     for k, sample_surfaces in enumerate(samples_surfaces_seq):
         img_dir = os.path.join(global_img_dir, f"seq_{k}")
         for i in range(len(sample_surfaces)):
@@ -79,6 +82,66 @@ def create_figs_1D_seq_spillpoint(samples_surfaces_seq, conditions, img_dir, sav
                     c=porosity,
                 )
                 cbar = plt.colorbar(scatter, orientation="horizontal")
+                if conditions is not None:
+                    plt.axvline(real_pos_injector, color="r", linestyle="--")
+                    # conditions is a list of tensors that have size [batch_size, 5, 32]
+                    # channel 0 is the one-hot encoded position for the porosity measurement
+                    # channel 1 is the one-hot encoded position for the value of porosity
+                    # channel 2 is the one-hot encoded position for the CO2 measurement
+                    # channel 3 is the one-hot encoded position for the value of the depth that CO2 reached
+                    # channel 4 is the one-hot encoded position for the value of the volume of injected CO2
+                    # plot the porosity measurement as a point above the previous porosity scatter
+                    porosity_measurement = torch.nonzero(
+                        conditions[j, k, i, 3, :].detach().cpu()
+                    ).squeeze()
+                    if porosity_measurement.shape != torch.Size([0]):
+                        porosity_measurement_value = (
+                            conditions[j, k, i, 4, porosity_measurement].detach().cpu()
+                        )
+                        plt.scatter(
+                            [porosity_measurement]
+                            if len(porosity_measurement.shape) == 0
+                            else porosity_measurement.tolist(),
+                            [max(top_surface) + 1.5]
+                            * (
+                                1
+                                if len(porosity_measurement.shape) == 0
+                                else len(porosity_measurement)
+                            ),
+                            s=25,
+                            c=porosity_measurement_value,
+                            label="porosity measurement",
+                        )
+                    # plot the CO2 measurement place as a point of height corresponding to the depth
+                    # of the CO2
+                    co2_measurement = torch.nonzero(
+                        conditions[j, k, i, 5, :].detach().cpu()
+                    ).squeeze()
+                    if co2_measurement.shape != torch.Size([0]):
+                        co2_measurement_value = (
+                            conditions[j, k, i, 6, co2_measurement].detach().cpu()
+                        )
+                        plt.scatter(
+                            [co2_measurement]
+                            if len(co2_measurement.shape) == 0
+                            else co2_measurement.tolist(),
+                            [top_surface[co2_measurement] - co2_measurement_value]
+                            if len(co2_measurement.shape) == 0
+                            else (
+                                top_surface[co2_measurement] - co2_measurement_value
+                            ).tolist(),
+                            s=25,
+                            c="red",
+                            label="CO2 measurement",
+                            marker="x",
+                        )
+                        # add injected volume in the title
+                        injected_volume = (
+                            conditions[j, k, i, 7, co2_measurement].detach().cpu()
+                        )
+                        plt.title(f"Injected volume: {injected_volume.sum()}")
+                    else:
+                        plt.title("Injected volume: 0")
                 plt.plot(x, top_surface, color="black", label="top surface")
                 plt.fill_between(
                     x,
@@ -269,7 +332,7 @@ def create_figs_best_metrics(
     figs = []
     for i in range(y_1_idx[0].shape[0]):
         fig = plt.figure()
-        for (name, sample) in best_samples.items():
+        for name, sample in best_samples.items():
             s = sample[i].squeeze().detach().cpu()
             if name == "std":
                 samp = best_samples["best_L2"][i].squeeze().detach().cpu()
@@ -333,7 +396,7 @@ def create_figs_best_metrics_2D(
         sample_img_dir = os.path.join(img_dir, f"test_best_metric_{i}")
         os.makedirs(sample_img_dir, exist_ok=True)
         cmap = cm.viridis
-        for (name, sample) in best_samples.items():
+        for name, sample in best_samples.items():
             fig = plt.figure()
             plt.imshow(sample[i].squeeze().detach().cpu(), cmap=cmap)
             for j in range(len(y_1_idx[0][i])):

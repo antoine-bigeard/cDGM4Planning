@@ -56,11 +56,11 @@ class Diffusion:
                     predicted_noise = torch.lerp(
                         uncond_predicted_noise, predicted_noise, cfg_scale
                     )
-                alpha = self.alpha[t.to(self.alpha.device)][:, None, None].cuda()
-                alpha_hat = self.alpha_hat[t.to(self.alpha.device)][
-                    :, None, None
-                ].cuda()
-                beta = self.beta[t.to(self.alpha.device)][:, None, None].cuda()
+                alpha = self.alpha[t.to(self.alpha.device)][:, None, None].to(x.device)
+                alpha_hat = self.alpha_hat[t.to(self.alpha.device)][:, None, None].to(
+                    x.device
+                )
+                beta = self.beta[t.to(self.alpha.device)][:, None, None].to(x.device)
                 if i > 1:
                     noise = torch.randn_like(x)
                 else:

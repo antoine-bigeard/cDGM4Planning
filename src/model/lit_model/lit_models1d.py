@@ -12,6 +12,7 @@ from src.model.lit_model.metrics import *
 from src.model.lit_model.lit_model_utils import *
 from src.model.model.modules_diffusion2d import *
 from src.model.model.DDPM2d import *
+from src.model.model.transformer import TransformerAlone
 
 from src.utils import *
 from src.model.lit_model.metrics import compute_cond_dist
@@ -32,10 +33,14 @@ class LitModel1d(pl.LightningModule):
 
     def on_fit_start(self) -> None:
         val_fig_batch = [
-            self.trainer.datamodule.val_dataset[i]
+            self.trainer.datamodule.val_dataset[i + 5]
             for i in range(self.validation_x_shape[0])
         ]
         self.validation_x, self.validation_y = collate_fn_for_trans(val_fig_batch)
+        # self.validation_y = (
+        #     self.validation_y[0][:, :5, :, :],
+        #     self.validation_y[1][:, :5],
+        # )
         # self.validation_x = (
         #     val_fig_batch[0][0][0].unsqueeze(0),
         #     val_fig_batch[0][0][1].unsqueeze(0),
@@ -285,6 +290,7 @@ class LitDDPM1dSeq2Seq(LitModel1d):
             t,
             src_padding_mask=surfaces_padding_mask,
             tgt_padding_mask=surfaces_padding_mask,
+            next_noises=noise,
         )[:, 1:, :, :]
 
         loss = self.mse_loss(noise, predicted_noise)
@@ -313,6 +319,7 @@ class LitDDPM1dSeq2Seq(LitModel1d):
             t,
             src_padding_mask=surfaces_padding_mask,
             tgt_padding_mask=surfaces_padding_mask,
+            next_noises=noise,
         )[:, 1:, :, :]
 
         loss = self.mse_loss(noise, predicted_noise)
@@ -429,14 +436,18 @@ class LitDDPM1d(LitModel1d):
         sequential_cond: bool = False,
         encoding_layer=ConditionEncoding,
         conf_encoding_layer={},
+        cuda_device_idx: int = 1,
     ):
         super().__init__()
+        self.cuda_device_idx = cuda_device_idx
         self.save_hyperparameters()
         self.sequential_cond = sequential_cond
         self.encoding_layer = None
         if self.sequential_cond:
             self.conf_encoding_layer = conf_encoding_layer
-            self.encoding_layer = encoding_layer(**conf_encoding_layer).cuda()
+            self.encoding_layer = encoding_layer(**conf_encoding_layer).cuda(
+                self.cuda_device_idx
+            )
             # self.encoding_layer = ConditionEncoding(
             #     input_size=128, hidden_size=128, num_layers=1, batch_first=True
             # ).cuda()
@@ -550,13 +561,13 @@ class LitDDPM1d(LitModel1d):
                         [self.validation_y[0][s].unsqueeze(0)]
                         * self.validation_x[0].size(0),
                         0,
-                    ).cuda(),
+                    ).to(self.device),
                     cfg_scale=self.cfg_scale,
                     labels_padding_masks=torch.cat(
                         [self.validation_y[1][s].unsqueeze(0)]
                         * self.validation_x[0].size(0),
                         0,
-                    ).cuda(),
+                    ).to(self.device),
                 )
             )
 
@@ -572,11 +583,11 @@ class LitDDPM1d(LitModel1d):
         for s in range(self.validation_x[0].size(0)):
             seq = []
             # find indexes in the sequence self.validation_y[s] that are not zero tensor
-            len_seq = (
-                torch.nonzero(self.validation_y[0][s], as_tuple=True)[s].max().item()
+            len_seq = int(
+                (self.validation_y[1][s].shape[0] - sum(self.validation_y[1][s])).item()
             )
 
-            for k in range(1, len_seq):
+            for k in range(1, len_seq + 1):
                 seq.append(
                     self.diffusion.sample(
                         self.model,
@@ -597,7 +608,7 @@ class LitDDPM1d(LitModel1d):
 
         figs = create_figs_1D_seq_spillpoint(
             sample_surfaces_seq,
-            conditions=None,
+            conditions=torch.stack([self.validation_y[0]] * len(sample_surfaces_seq)),
             img_dir=img_dir,
             save=True,
         )
@@ -613,3 +624,135 @@ class LitDDPM1d(LitModel1d):
         #     self.logger.experiment.add_figure(
         #         f"generated_image_{i}", fig, self.current_epoch
         #     )
+
+
+class LitTransformer(LitModel1d):
+    def __init__(
+        self,
+        transformer=TransformerAlone,
+        conf_transformer: dict = {
+            "in_channels": 5,
+            "out_channels": 5,
+            "resolution": 32,
+            "dim_model": 32,
+            "num_heads": 8,
+            "num_encoder_layers": 2,
+            "num_decoder_layers": 2,
+            "dropout": 0.1,
+            "dim_feed_forward": 2048,
+            "time_dim": 256,
+            "encoding_layer": None,
+            "conditional": True,
+        },
+        lr: float = 0.0002,
+        b1: float = 0.5,
+        b2: float = 0.999,
+        validation_x_shape: np.ndarray = [5, 51, 1],
+        log_dir: str = "",
+        batch_size=512,
+        n_sample_for_metric: int = 100,
+        latent_dim=20,
+        sequential_cond: bool = False,
+        encoding_layer=ConditionEncoding,
+        conf_encoding_layer={},
+        cuda_device_idx: int = 0,
+    ):
+        super().__init__()
+        self.cuda_device_idx = cuda_device_idx
+        self.save_hyperparameters()
+        self.sequential_cond = sequential_cond
+        self.encoding_layer = None
+        if self.sequential_cond:
+            self.conf_encoding_layer = conf_encoding_layer
+            self.encoding_layer = encoding_layer(**conf_encoding_layer).cuda(
+                self.cuda_device_idx
+            )
+
+        # instantiate models
+        self.conf_transformer = conf_transformer
+        self.model = transformer(**conf_transformer)
+
+        self.latent_dim = latent_dim
+        self.lr = lr
+        self.b1 = b1
+        self.b2 = b2
+        self.validation_x_shape = validation_x_shape
+        self.log_dir = log_dir
+        self.batch_size = batch_size
+        self.n_sample_for_metric = n_sample_for_metric
+
+        self.validation_z = torch.randn(
+            self.validation_x_shape[0], self.latent_dim, device=self.device
+        )
+
+        self.current_training_step = 0
+        self.current_validation_step = 0
+
+        self.mse_loss = nn.MSELoss(reduction="none")
+
+    def loss_fn(self, recon_x, x):
+        return F.mse_loss(recon_x, x)
+
+    def training_step(self, batch, batch_idx):
+        (surfaces, surfaces_padding_mask), (
+            observations,
+            observations_padding_mask,
+        ) = batch
+
+        out = self.model(
+            src=observations,
+            tgt=surfaces,
+            src_padding_mask=observations_padding_mask,
+            tgt_padding_mask=surfaces_padding_mask,
+        )[:, 1:, :, :]
+
+        loss = F.mse_loss(surfaces, out)
+        self.log("val/loss", loss, prog_bar=True)
+
+        self.current_validation_step += 1
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        (surfaces, surfaces_padding_mask), (
+            observations,
+            observations_padding_mask,
+        ) = batch
+
+        out = self.model(
+            src=observations,
+            tgt=surfaces,
+            src_padding_mask=observations_padding_mask,
+            tgt_padding_mask=surfaces_padding_mask,
+        )[:, 1:, :, :]
+
+        loss = F.mse_loss(surfaces, out)
+        self.log("val/loss", loss, prog_bar=True)
+
+        self.current_validation_step += 1
+        return loss
+
+    def configure_optimizers(self):
+        opt = torch.optim.Adam(
+            self.model.parameters(), lr=self.lr, betas=(self.b1, self.b2)
+        )
+        return opt
+
+    def on_train_epoch_start(self) -> None:
+        img_dir = os.path.join(self.log_dir, f"epoch_{self.current_epoch}")
+        os.makedirs(img_dir, exist_ok=True)
+        # log sampled images
+        sample_surfaces = []
+        for s in range(self.validation_x[0].size(0)):
+            sample_surfaces.append(
+                self.model.generate_out_sequence(
+                    past_surfaces=None,
+                    observations=self.validation_y[0],
+                )
+            )
+
+        figs = create_figs_1D_seq_spillpoint(
+            sample_surfaces,
+            conditions=None,
+            img_dir=img_dir,
+            save=True,
+        )

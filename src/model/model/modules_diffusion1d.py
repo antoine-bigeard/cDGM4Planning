@@ -180,9 +180,9 @@ class UNet_conditional(nn.Module):
         self.conditional = conditional
 
     def pos_encoding(self, t, channels):
-        inv_freq = (
-            1.0 / (10000 ** (torch.arange(0, channels, 2).float() / channels)).cuda()
-        )
+        inv_freq = 1.0 / (
+            10000 ** (torch.arange(0, channels, 2).float() / channels)
+        ).to(t.device)
         pos_enc_a = torch.sin(t.repeat(1, channels // 2) * inv_freq)
         pos_enc_b = torch.cos(t.repeat(1, channels // 2) * inv_freq)
         pos_enc = torch.cat([pos_enc_a, pos_enc_b], dim=-1)
@@ -190,7 +190,7 @@ class UNet_conditional(nn.Module):
 
     def forward(self, x, t, y, src_padding_mask=None):
         if self.encoding_layer:
-            y = self.encoding_layer(y, src_padding_mask=src_padding_mask).cuda()
+            y = self.encoding_layer(y, src_padding_mask=src_padding_mask).to(x.device)
 
         t = t.unsqueeze(-1).type(torch.float)
         t = self.pos_encoding(t, self.time_dim)

@@ -113,6 +113,7 @@ class Transformer4DDPM(nn.Module):
         dim_feed_forward=2048,
         time_dim=256,
         encoding_layer=None,
+        conditional=True,
     ):
         super().__init__()
 
@@ -127,6 +128,7 @@ class Transformer4DDPM(nn.Module):
         self.dropout = dropout
         self.dim_feed_forward = dim_feed_forward
         self.time_dim = time_dim
+        self.conditional = conditional
 
         self.transformer = nn.Transformer(
             d_model=dim_model,
@@ -139,9 +141,9 @@ class Transformer4DDPM(nn.Module):
         self.positional_encoder = PositionalEncoding(
             dim_model=dim_model, dropout=dropout, max_len=5000
         )
-        self.convert_to_state = nn.Linear(
-            in_features=in_channels * resolution, out_features=out_channels * resolution
-        )
+        # self.convert_to_state = nn.Linear(
+        #     in_features=in_channels * resolution, out_features=out_channels * resolution
+        # )
 
         self.output_first_token = nn.Parameter(torch.zeros(in_channels * resolution))
 
@@ -175,9 +177,14 @@ class Transformer4DDPM(nn.Module):
         t,
         src_padding_mask=None,
         tgt_padding_mask=None,
+        next_noises: torch.Tensor = None,
     ):
-        src = torch.cat([past_surfaces, observations], dim=2)
-        tgt = torch.cat([next_surfaces, observations], dim=2)
+        if self.conditional:
+            src = torch.cat([past_surfaces, observations], dim=2)
+            tgt = torch.cat([next_surfaces, observations], dim=2)
+        else:
+            src = past_surfaces
+            tgt = next_noises
         initial_shape = src.shape
         src = src.reshape((src.size(0), src.size(1), src.size(2) * src.size(3)))
         tgt = tgt.reshape((tgt.size(0), tgt.size(1), tgt.size(2) * tgt.size(3)))
@@ -205,18 +212,33 @@ class Transformer4DDPM(nn.Module):
             tgt_key_padding_mask=tgt_padding_mask,
         )
 
-        out = self.convert_to_state(output_sequence).reshape(
-            (src.size(0), tgt.size(1), self.output_channels, self.resolution)
-        )
+        if self.conditional:
+            # out = self.convert_to_state(output_sequence).reshape(
+            #     (src.size(0), tgt.size(1), self.output_channels, self.resolution)
+            # )
+            out = output_sequence.reshape(
+                (src.size(0), tgt.size(1), initial_shape[2], self.resolution)
+            )[:, :, :5, :]
+        else:
+            out = output_sequence.reshape(
+                (src.size(0), tgt.size(1), self.output_channels, self.resolution)
+            )
 
         return out
 
     def generate_out_sequence(self, past_surfaces, observations, t):
-        src = torch.cat([past_surfaces, observations], dim=2)
+        if self.conditional:
+            src = torch.cat([past_surfaces, observations], dim=2)
+        else:
+            src = past_surfaces
 
         len_out_seq = src.size(1)
 
-        src_mask = torch.zeros((len_out_seq, len_out_seq)).cuda().type(torch.bool)
+        src_mask = (
+            torch.zeros((len_out_seq, len_out_seq))
+            .to(past_surfaces.device)
+            .type(torch.bool)
+        )
 
         memory = self.encode(src, src_mask, t)
         # out_sequence = (
@@ -226,21 +248,192 @@ class Transformer4DDPM(nn.Module):
         # )
         out_sequence = self.output_first_token.unsqueeze(0).unsqueeze(0)
 
-        out_sequence_converted = self.convert_to_state(out_sequence)
+        if self.conditional:
+            # out_sequence_converted = self.convert_to_state(out_sequence)
+            out_sequence_converted = out_sequence
+        else:
+            out_sequence_converted = out_sequence
 
         for i in range(len_out_seq):
             tgt_mask = generate_square_subsequent_mask(out_sequence.size(1))
             out = self.decode(out_sequence, memory, tgt_mask)
             out_sequence = torch.cat([out_sequence, out[:, -1:, :]], dim=1)
-            out_sequence_converted = torch.cat(
-                [out_sequence_converted, self.convert_to_state(out[:, -1:, :])], dim=1
-            )
+            if self.conditional:
+                out_sequence_converted = torch.cat(
+                    [out_sequence_converted, out[:, -1:, :]],
+                    dim=1,
+                )
+            else:
+                out_sequence_converted = torch.cat(
+                    [out_sequence_converted, out[:, -1:, :]], dim=1
+                )
 
         return out_sequence_converted.reshape(
             (
                 out_sequence.size(0),
                 out_sequence.size(1),
-                self.output_channels,
+                13,
+                self.resolution,
+            )
+        )[:, 1:, :5, :]
+
+
+class TransformerAlone(nn.Module):
+    def __init__(
+        self,
+        in_channels=5,
+        out_channels=5,
+        resolution=32,
+        dim_model=32,
+        num_heads=8,
+        num_encoder_layers=2,
+        num_decoder_layers=2,
+        dropout=0.1,
+        dim_feed_forward=2048,
+        time_dim=256,
+        encoding_layer=None,
+        conditional=True,
+    ):
+        super().__init__()
+
+        # Layers
+        self.input_channels = in_channels
+        self.output_channels = out_channels
+        self.resolution = resolution
+        self.dim_model = dim_model
+        self.num_heads = num_heads
+        self.num_encoder_layers = num_encoder_layers
+        self.num_decoder_layers = num_decoder_layers
+        self.dropout = dropout
+        self.dim_feed_forward = dim_feed_forward
+        self.time_dim = time_dim
+        self.conditional = conditional
+
+        self.transformer = nn.Transformer(
+            d_model=dim_model,
+            nhead=num_heads,
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+            dropout=dropout,
+            batch_first=True,
+        )
+        self.positional_encoder = PositionalEncoding(
+            dim_model=dim_model, dropout=dropout, max_len=5000
+        )
+        self.first_convert = nn.Linear(
+            in_features=out_channels * resolution, out_features=in_channels * resolution
+        )
+        self.convert_to_state = nn.Linear(
+            in_features=in_channels * resolution, out_features=out_channels * resolution
+        )
+
+        self.output_first_token = nn.Parameter(torch.zeros(in_channels * resolution))
+
+    def time_encoding(self, t, channels):
+        inv_freq = 1.0 / (
+            10000 ** (torch.arange(0, channels, 2).float() / channels)
+        ).to(self.device)
+        # repeat t tensor channels//2 times ona second dimension
+
+        pos_enc_a = torch.sin(t.unsqueeze(1).repeat(1, channels // 2) * inv_freq)
+        pos_enc_b = torch.cos(t.unsqueeze(1).repeat(1, channels // 2) * inv_freq)
+        pos_enc = torch.cat([pos_enc_a, pos_enc_b], dim=-1)
+        return pos_enc
+
+    def encode(self, src: torch.Tensor, src_mask: torch.Tensor):
+        src = src.reshape((src.size(0), src.size(1), src.size(2) * src.size(3)))
+        src = self.positional_encoder(src)
+
+        return self.transformer.encoder(src, src_mask)
+
+    def decode(self, tgt: torch.Tensor, memory: torch.Tensor, tgt_mask: torch.Tensor):
+        return self.transformer.decoder(self.positional_encoder(tgt), memory, tgt_mask)
+
+    def forward(
+        self,
+        src: torch.Tensor,
+        tgt: torch.Tensor,
+        src_padding_mask=None,
+        tgt_padding_mask=None,
+    ):
+        initial_shape = src.shape
+        src = src.reshape((src.size(0), src.size(1), src.size(2) * src.size(3)))
+        tgt = tgt.reshape((tgt.size(0), tgt.size(1), tgt.size(2) * tgt.size(3)))
+        src = self.positional_encoder(src)
+        tgt = self.first_convert(tgt)
+        tgt = self.positional_encoder(tgt)
+
+        tgt_start = self.output_first_token.repeat(src.size(0), 1).unsqueeze(1)
+        tgt = torch.cat([tgt_start, tgt], dim=1)
+
+        first_true = torch.zeros(src.size(0), 1).to(src.device)
+        tgt_padding_mask = torch.cat([first_true, tgt_padding_mask], dim=1)
+
+        src_mask, tgt_mask = create_mask(src, tgt, device=src.device)
+
+        output_sequence = self.transformer(
+            src,
+            tgt,
+            src_mask=src_mask,
+            tgt_mask=tgt_mask,
+            src_key_padding_mask=src_padding_mask,
+            tgt_key_padding_mask=tgt_padding_mask,
+        )
+
+        if self.conditional:
+            out = self.convert_to_state(output_sequence).reshape(
+                (src.size(0), tgt.size(1), self.output_channels, self.resolution)
+            )
+        else:
+            out = output_sequence.reshape(
+                (src.size(0), tgt.size(1), self.output_channels, self.resolution)
+            )
+
+        return out
+
+    def generate_out_sequence(self, past_surfaces, observations):
+        if self.conditional:
+            src = observations.cuda()
+        else:
+            src = past_surfaces
+
+        len_out_seq = src.size(1)
+
+        src_mask = torch.zeros((len_out_seq, len_out_seq)).cuda().type(torch.bool)
+
+        memory = self.encode(src, src_mask)
+        # out_sequence = (
+        #     torch.cat([self.output_first_token, observations[0]], dim=1)
+        #     .repeat(src.size(0), 1)
+        #     .unsqueeze(1)
+        # )
+        out_sequence = self.output_first_token.unsqueeze(0).unsqueeze(0)
+
+        if self.conditional:
+            out_sequence_converted = self.convert_to_state(out_sequence)
+            # out_sequence_converted = out_sequence
+        else:
+            out_sequence_converted = out_sequence
+
+        for i in range(len_out_seq):
+            tgt_mask = generate_square_subsequent_mask(out_sequence.size(1))
+            out = self.decode(out_sequence, memory, tgt_mask)
+            out_sequence = torch.cat([out_sequence, out[:, -1:, :]], dim=1)
+            if self.conditional:
+                out_sequence_converted = torch.cat(
+                    [out_sequence_converted, self.convert_to_state(out[:, -1:, :])],
+                    dim=1,
+                )
+            else:
+                out_sequence_converted = torch.cat(
+                    [out_sequence_converted, out[:, -1:, :]], dim=1
+                )
+
+        return out_sequence_converted.reshape(
+            (
+                out_sequence.size(0),
+                out_sequence.size(1),
+                5,
                 self.resolution,
             )
         )[:, 1:, :, :]
