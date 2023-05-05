@@ -145,6 +145,11 @@ class Transformer4DDPM(nn.Module):
         #     in_features=in_channels * resolution, out_features=out_channels * resolution
         # )
 
+        self.post_freq_embedding_time = nn.Sequential(
+            nn.Linear(self.time_dim, in_channels * resolution),
+            nn.ReLU(),
+        )
+
         self.output_first_token = nn.Parameter(torch.zeros(in_channels * resolution))
 
     def time_encoding(self, t, channels):
@@ -161,8 +166,8 @@ class Transformer4DDPM(nn.Module):
     def encode(self, src: torch.Tensor, src_mask: torch.Tensor, t):
         src = src.reshape((src.size(0), src.size(1), src.size(2) * src.size(3)))
         src = self.positional_encoder(src)
-        t = self.time_encoding(t, self.time_dim)
-        src += t
+        # t = self.time_encoding(t, self.time_dim)
+        # src += t
 
         return self.transformer.encoder(src, src_mask)
 
@@ -186,20 +191,34 @@ class Transformer4DDPM(nn.Module):
             src = past_surfaces
             tgt = next_noises
         initial_shape = src.shape
+
         src = src.reshape((src.size(0), src.size(1), src.size(2) * src.size(3)))
-        tgt = tgt.reshape((tgt.size(0), tgt.size(1), tgt.size(2) * tgt.size(3)))
+        if next_noises is not None:
+            tgt = tgt.reshape((tgt.size(0), tgt.size(1), tgt.size(2) * tgt.size(3)))
+
+        # tgt_start = self.output_first_token.repeat(src.size(0), 1).unsqueeze(1)
+        # tgt = torch.cat([tgt_start, tgt[:, :-1, :]], dim=1)
+
+        # src += t.unsqueeze(1)
+        # tgt += t.unsqueeze(1)
+
+        t = self.time_encoding(t, self.time_dim)
+        t = self.post_freq_embedding_time(t)
+
+        # tgt_start = torch.cat([t.unsqueeze(1)] * tgt.size(1), dim=1)
+        if next_noises is not None:
+            tgt = torch.cat([t.unsqueeze(1), tgt], dim=1)
+        else:
+            tgt = t.unsqueeze(1)
+
         src = self.positional_encoder(src)
         tgt = self.positional_encoder(tgt)
 
-        t = self.time_encoding(t, self.time_dim)
-
-        src += t.unsqueeze(1)
-
-        tgt_start = self.output_first_token.repeat(src.size(0), 1).unsqueeze(1)
-        tgt = torch.cat([tgt_start, tgt], dim=1)
-
         first_true = torch.zeros(src.size(0), 1).to(src.device)
-        tgt_padding_mask = torch.cat([first_true, tgt_padding_mask], dim=1)
+        if next_noises is not None:
+            tgt_padding_mask = torch.cat([first_true, tgt_padding_mask], dim=1)
+        else:
+            tgt_padding_mask = first_true
 
         src_mask, tgt_mask = create_mask(src, tgt, device=src.device)
 
@@ -227,6 +246,51 @@ class Transformer4DDPM(nn.Module):
         return out
 
     def generate_out_sequence(self, past_surfaces, observations, t):
+        src = past_surfaces
+
+        len_out_seq = src.size(1)
+
+        out_sequence = None
+
+        out_sequence_converted = torch.Tensor().cuda()
+
+        for i in range(len_out_seq):
+            src_padding_mask = torch.zeros(src.size(0), src.size(1)).cuda()
+            tgt_padding_mask = torch.zeros(src.size(0), i).cuda()
+            out = self.forward(
+                past_surfaces,
+                observations,
+                None,
+                t,
+                src_padding_mask=src_padding_mask,
+                tgt_padding_mask=tgt_padding_mask,
+                next_noises=out_sequence,
+            )
+            out_sequence = (
+                torch.cat([out_sequence, out[:, -1:, :]], dim=1)
+                if out_sequence is not None
+                else out[:, -1:, :]
+            )
+            if self.conditional:
+                out_sequence_converted = torch.cat(
+                    [out_sequence_converted, out[:, -1:, :]],
+                    dim=1,
+                )
+            else:
+                out_sequence_converted = torch.cat(
+                    [out_sequence_converted, out[:, -1:, :]], dim=1
+                )
+
+        return out_sequence_converted.reshape(
+            (
+                out_sequence.size(0),
+                out_sequence.size(1),
+                src.size(2),
+                self.resolution,
+            )
+        )[:, :, :5, :]
+
+    def generate_out_sequence2(self, past_surfaces, observations, t):
         if self.conditional:
             src = torch.cat([past_surfaces, observations], dim=2)
         else:
@@ -246,7 +310,12 @@ class Transformer4DDPM(nn.Module):
         #     .repeat(src.size(0), 1)
         #     .unsqueeze(1)
         # )
-        out_sequence = self.output_first_token.unsqueeze(0).unsqueeze(0)
+        # out_sequence = self.output_first_token.unsqueeze(0).unsqueeze(0)
+
+        t = self.time_encoding(t, self.time_dim)
+        t = self.post_freq_embedding_time(t)
+
+        out_sequence = t.unsqueeze(1)
 
         if self.conditional:
             # out_sequence_converted = self.convert_to_state(out_sequence)
@@ -272,7 +341,7 @@ class Transformer4DDPM(nn.Module):
             (
                 out_sequence.size(0),
                 out_sequence.size(1),
-                13,
+                src.size(2),
                 self.resolution,
             )
         )[:, 1:, :5, :]
@@ -433,7 +502,7 @@ class TransformerAlone(nn.Module):
             (
                 out_sequence.size(0),
                 out_sequence.size(1),
-                5,
+                past_surfaces.size(2),
                 self.resolution,
             )
         )[:, 1:, :, :]

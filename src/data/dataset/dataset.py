@@ -13,9 +13,15 @@ class MyDataset(Dataset):
         self,
         df: pd.DataFrame,
         sequential_cond=False,
+        random_subsequence=False,
+        pad_all=False,
+        dict_output=False,
     ) -> None:
         self.df = df
         self.sequential_cond = sequential_cond
+        self.random_subsequence = random_subsequence
+        self.pad_all = pad_all
+        self.dict_output = dict_output
 
     def __len__(self):
         return len(self.df)
@@ -29,10 +35,33 @@ class MyDataset(Dataset):
         #     row["observations"]
         # ), torch.Tensor(row["observations_padding_masks"])
 
+        if self.pad_all:
+            surfaces, surfaces_padding_masks = torch.Tensor(
+                row["surfaces"][0]
+            ), torch.Tensor(row["surfaces"][1])
+            observations, observations_padding_masks = torch.Tensor(
+                row["observations"][0]
+            ), torch.Tensor(row["observations"][1])
+            return (surfaces, surfaces_padding_masks), (
+                observations,
+                observations_padding_masks,
+            )
+
         surfaces, observations = torch.Tensor(row["surfaces"]), torch.Tensor(
             row["observations"]
         )
-        return surfaces, observations
+        if self.dict_output:
+            return {
+                "surfaces": surfaces,
+                "observations": observations,
+            }
+
+        if not self.random_subsequence:
+            return surfaces[:, [0], :], observations
+
+        else:
+            idx = np.random.randint(1, len(surfaces) - 1)
+            return surfaces, observations[:idx]
 
         # if not self.sequential_cond:
         # check if surfaces is a tensor

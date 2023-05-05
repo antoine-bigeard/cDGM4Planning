@@ -1,6 +1,7 @@
 import sys
 
 sys.path.insert(0, ".")
+sys.path.insert(0, "./stable_diffusion")
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -43,6 +44,10 @@ def main(config):
 
     with open(os.path.join(logs_folder, "config.yaml"), "w") as dst:
         yaml.dump(config, dst)
+
+    # copy python code in logs_folder/code
+    os.makedirs(os.path.join(logs_folder, "code"), exist_ok=True)
+    os.system(f"cp -r src {logs_folder}/code")
 
     # configure data module
     datamodule = MyDataModule(**conf_datamodule)
@@ -103,7 +108,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="configs_runs/sequence/transformer_alone.yaml",
+        # default="configs_runs/sequence/stable_diff.yaml",
+        default="configs_runs/sequence/unconditional_denoising_transformer.yaml",
         required=False,
     )
 

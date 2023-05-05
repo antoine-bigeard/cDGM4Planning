@@ -1,12 +1,22 @@
 import pytorch_lightning as pl
 
 from src.model.lit_model.lit_models2d import LitDCGAN2d, LitDDPM2d
-from src.model.lit_model.lit_models1d import LitDDPM1d, LitDDPM1dSeq2Seq, LitTransformer
+from src.model.lit_model.lit_models1d import (
+    LitDDPM1d,
+    LitDDPM1dSeq2Seq,
+    LitTransformer,
+    LitCrossAttentionDDPM,
+)
 from src.model.model.DCGAN2d import LargeGeneratorInject2d, LargerDiscriminator2d
 from src.model.model.DDPM2d import Diffusion2d
 from src.model.model.modules_diffusion2d import UNet_conditional2d, EMA2d
-from src.model.model.DDPM1d import Diffusion, DiffusionTransformer
+from src.model.model.DDPM1d import (
+    Diffusion,
+    DiffusionTransformer,
+    DiffusionTransformer2,
+)
 from src.model.model.modules_diffusion1d import UNet_conditional, EMA
+from src.model.stable_diffusion.diffusion import DiffusionUNet
 
 from src.model.model.stylegan_simple import Generator, Discriminator
 
@@ -15,6 +25,10 @@ from src.model.model.transformer import (
     Transformer4DDPM,
     TransformerAlone,
 )
+
+from src.model.lit_model.lit_models1d_fullddpm import LitDDPM1dFull
+
+from stable_diffusion.ldm.models.diffusion.ddpm import LatentDiffusion, DDPM
 
 
 def instantiate_lit_model(config, logs_folder=None) -> pl.LightningModule:
@@ -32,12 +46,24 @@ def instantiate_lit_model(config, logs_folder=None) -> pl.LightningModule:
         conf_lit_model["conf_vae"]["decoder_model"] = eval(
             conf_lit_model["conf_vae"]["decoder_model"]
         )
-    elif config["lit_model_type"] in ["LitDDPM1d", "LitDDPM2d", "LitDDPM1dSeq2Seq"]:
+    elif config["lit_model_type"] in [
+        "LitDDPM1d",
+        "LitDDPM2d",
+        "LitDDPM1dSeq2Seq",
+        "LitCrossAttentionDDPM",
+        "LitDDPM1dFull",
+    ]:
         conf_lit_model["ema"] = eval(conf_lit_model["ema"])
         conf_lit_model["diffusion"] = eval(conf_lit_model["diffusion"])
         conf_lit_model["ddpm"] = eval(conf_lit_model["ddpm"])
     elif config["lit_model_type"] in ["LitTransformer"]:
         conf_lit_model["transformer"] = eval(conf_lit_model["transformer"])
+    elif config["lit_model_type"] in ["LatentDiffusion", "DDPM"]:
+        lit_model = eval(config["lit_model_type"])(
+            **conf_lit_model,
+        )
+        lit_model.learning_rate = config["learning_rate"]
+        return lit_model
     return eval(config["lit_model_type"])(
         log_dir=logs_folder,
         **conf_lit_model,

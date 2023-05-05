@@ -7,6 +7,9 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from src.utils import create_figs_1D_seq_spillpoint
+import os
+
 
 class Diffusion:
     def __init__(
@@ -111,7 +114,7 @@ class DiffusionTransformer:
     def sample_timesteps(self, n):
         return torch.randint(low=1, high=self.noise_steps, size=(n,))
 
-    def sample(self, transformer, observations, cfg_scale=3):
+    def sample(self, transformer, observations, cfg_scale=3, log_dir=None):
         n = observations.shape[0]
         transformer.eval()
         with torch.inference_mode():
@@ -125,7 +128,7 @@ class DiffusionTransformer:
                 )
                 alpha = self.alpha[t.to(self.alpha.device)][:, None, None, None].cuda()
                 alpha_hat = self.alpha_hat[t.to(self.alpha.device)][
-                    :, None, None
+                    :, None, None, None
                 ].cuda()
                 beta = self.beta[t.to(self.alpha.device)][:, None, None, None].cuda()
                 if i > 1:
@@ -141,5 +144,79 @@ class DiffusionTransformer:
                     )
                     + torch.sqrt(beta) * noise
                 )
+                if log_dir is not None and t.item() % 20 == 0:
+                    create_figs_1D_seq_spillpoint(
+                        surfaces.unsqueeze(2),
+                        conditions=None,
+                        img_dir=os.path.join(
+                            log_dir,
+                            "validation",
+                            f"denosing_step_{t.item()}",
+                            "surfaces_t",
+                        ),
+                        save=True,
+                        test=True,
+                    )
         transformer.train()
+        return surfaces
+
+
+class DiffusionTransformer2:
+    def __init__(
+        self,
+        noise_steps=1000,
+        beta_start=1e-4,
+        beta_end=0.02,
+        surf_size=64,
+    ):
+        self.noise_steps = noise_steps
+        self.beta_start = beta_start
+        self.beta_end = beta_end
+
+        self.beta = self.prepare_noise_schedule()
+        self.alpha = 1.0 - self.beta
+        self.alpha_hat = torch.cumprod(self.alpha, dim=0)
+
+        self.surf_size = surf_size
+
+    def prepare_noise_schedule(self):
+        return torch.linspace(self.beta_start, self.beta_end, self.noise_steps)
+
+    def noise_images(self, x, t):
+        t = t.to(self.alpha.device)
+        sqrt_alpha_hat = torch.sqrt(self.alpha_hat[t])[:, None, None].to(x.device)
+        sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.alpha_hat[t])[:, None, None].to(
+            x.device
+        )
+        epsilon = torch.randn_like(x)
+        return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * epsilon, epsilon
+
+    def sample_timesteps(self, n):
+        return torch.randint(low=1, high=self.noise_steps, size=(n,))
+
+    def sample(self, model, observations, cfg_scale=3):
+        n = observations.shape[0]
+        with torch.inference_mode():
+            surfaces = torch.randn((n, model.c_out, observations.size(2))).cuda()
+            for i in tqdm(reversed(range(1, self.noise_steps)), position=0):
+                t = (torch.ones(n) * i).long().to(surfaces.device)
+                predicted_noise = model(surfaces, t, observations.cuda())
+                alpha = self.alpha[t.to(self.alpha.device)][:, None, None].cuda()
+                alpha_hat = self.alpha_hat[t.to(self.alpha.device)][
+                    :, None, None
+                ].cuda()
+                beta = self.beta[t.to(self.alpha.device)][:, None, None].cuda()
+                if i > 1:
+                    noise = torch.randn_like(surfaces)
+                else:
+                    noise = torch.zeros_like(surfaces)
+                surfaces = (
+                    1
+                    / torch.sqrt(alpha)
+                    * (
+                        surfaces
+                        - ((1 - alpha) / (torch.sqrt(1 - alpha_hat))) * predicted_noise
+                    )
+                    + torch.sqrt(beta) * noise
+                )
         return surfaces

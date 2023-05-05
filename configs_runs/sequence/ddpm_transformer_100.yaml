@@ -1,25 +1,27 @@
-name_experiment: sequence_test_all_data_real_trainval
+name_experiment: ddpm_trans_500
 seed: 1234
 mode: fit
 
 datamodule:
-  path_data_json: data/spillpoint_train_all_seq.json
+  path_data_json: data/spillpoint_train.json
   # path_surfaces_h5py: data/surfaces64.hdf5
   # path_observations_h5py: data/observations64.hdf5
   batch_size: 80
-  shuffle_data: False
+  shuffle_data: True
   num_workers: 4
   pct_train: 0.95
   pct_val: 0.05
   pct_test: 0
   two_dimensional: False
   sequential_cond: True
+  random_subsequence: False
+  use_collate_fn: True
 
 lit_model_type: LitDDPM1d
 lit_model:
   diffusion: Diffusion
   conf_diffusion:
-    noise_steps: 100
+    noise_steps: 50
     beta_start: 0.0001
     beta_end: 0.02
     surf_size: 32

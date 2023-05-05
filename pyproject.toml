@@ -25,6 +25,9 @@ spacy = "^3.5.1"
 portalocker = "^2.7.0"
 nbconvert = "^7.3.1"
 torchvision = "^0.15.1"
+taming-transformers-rom1504 = "^0.0.6"
+clip = "^0.2.0"
+transformers = "^4.28.1"
 
 
 [tool.poetry.group.dev.dependencies]

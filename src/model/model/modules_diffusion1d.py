@@ -48,12 +48,12 @@ class SelfAttention(nn.Module):
         )
 
     def forward(self, x):
-        x = x.view(-1, self.channels, self.size).swapaxes(1, 2)
+        x = x.reshape(-1, self.channels, self.size).swapaxes(1, 2)
         x_ln = self.ln(x)
         attention_value, _ = self.mha(x_ln, x_ln, x_ln)
         attention_value = attention_value + x
         attention_value = self.ff_self(attention_value) + attention_value
-        return attention_value.swapaxes(2, 1).view(-1, self.channels, self.size)
+        return attention_value.swapaxes(2, 1).reshape(-1, self.channels, self.size)
 
 
 class DoubleConv(nn.Module):
@@ -129,17 +129,43 @@ class UNet_conditional(nn.Module):
         num_classes=64,
         encoding_layer=None,
         conditional=True,
+        personal=False,
     ):
         super().__init__()
         self.time_dim = time_dim
+        self.personal = personal
+
         self.inc = DoubleConv(c_in, 64)
 
-        self.down1 = Down(64, 128)
-        self.sa1 = SelfAttention(128, 16)
-        self.down2 = Down(128, 256)
-        self.sa2 = SelfAttention(256, 8)
-        self.down3 = Down(256, 256)
-        self.sa3 = SelfAttention(256, 4)
+        if personal:
+            self.down1 = Down(64, 128)
+            self.sa1 = SelfAttention(128, 2656)
+            self.down2 = Down(128, 256)
+            self.sa2 = SelfAttention(256, 1328)
+            self.down3 = Down(256, 256)
+            self.sa3 = SelfAttention(256, 664)
+
+            self.up1 = Up(512, 128)
+            self.sa4 = SelfAttention(128, 1328)
+            self.up2 = Up(256, 64)
+            self.sa5 = SelfAttention(64, 2656)
+            self.up3 = Up(128, 64)
+            self.sa6 = SelfAttention(64, 5312)
+
+        else:
+            self.down1 = Down(64, 128)
+            self.sa1 = SelfAttention(128, 16)
+            self.down2 = Down(128, 256)
+            self.sa2 = SelfAttention(256, 8)
+            self.down3 = Down(256, 256)
+            self.sa3 = SelfAttention(256, 4)
+
+            self.up1 = Up(512, 128)
+            self.sa4 = SelfAttention(128, 8)
+            self.up2 = Up(256, 64)
+            self.sa5 = SelfAttention(64, 16)
+            self.up3 = Up(128, 64)
+            self.sa6 = SelfAttention(64, 32)
 
         # self.down1 = Down(64, 128)
         # self.sa1 = SelfAttention(128, 32)
@@ -151,13 +177,6 @@ class UNet_conditional(nn.Module):
         # self.bot1 = DoubleConv(256, 512)
         # self.bot2 = DoubleConv(512, 512)
         # self.bot3 = DoubleConv(512, 256)
-
-        self.up1 = Up(512, 128)
-        self.sa4 = SelfAttention(128, 8)
-        self.up2 = Up(256, 64)
-        self.sa5 = SelfAttention(64, 16)
-        self.up3 = Up(128, 64)
-        self.sa6 = SelfAttention(64, 32)
 
         # self.up1 = Up(512, 128)
         # self.sa4 = SelfAttention(128, 16)

@@ -36,6 +36,10 @@ class MyDataModule(pl.LightningDataModule):
         two_dimensional=False,
         shuffle_data=True,
         sequential_surfaces=False,
+        random_subsequence=False,
+        pad_all=False,
+        use_collate_fn=False,
+        dict_output=False,
         *args,
         **kwargs,
     ):
@@ -52,6 +56,10 @@ class MyDataModule(pl.LightningDataModule):
         self.two_dimensional = two_dimensional
         self.shuffle_data = shuffle_data
         self.sequential_surfaces = sequential_surfaces
+        self.random_subsequence = random_subsequence
+        self.pad_all = pad_all
+        self.use_collate_fn = use_collate_fn
+        self.dict_output = dict_output
 
     def prepare_data(self):
         if self.path_observations_h5py is not None:
@@ -72,6 +80,25 @@ class MyDataModule(pl.LightningDataModule):
                         for i in range(len(surfaces)):
                             surfaces[i] = surfaces[i][-1]
                     observations = merge_actions_observations(actions, observations)
+                    if self.pad_all:
+                        surfaces = padding_data(surfaces)
+                        observations = padding_data(observations)
+                        tmp_surfaces = torch.transpose(surfaces[0], 1, 2)
+                        tmp_observations = torch.transpose(observations[0], 1, 2)
+                        tmp_surfaces = tmp_surfaces.reshape(
+                            tmp_surfaces.shape[0],
+                            tmp_surfaces.shape[1],
+                            tmp_surfaces.shape[2] * tmp_surfaces.shape[3],
+                        )
+                        tmp_observations = tmp_observations.reshape(
+                            tmp_observations.shape[0],
+                            tmp_observations.shape[1],
+                            tmp_observations.shape[2] * tmp_observations.shape[3],
+                        )
+                        # tmp_surfaces = surfaces[0]
+                        # tmp_observations = observations[0]
+                        surfaces = zip(tmp_surfaces, surfaces[1])
+                        observations = zip(tmp_observations, observations[1])
         df = pd.DataFrame(
             {"surfaces": list(surfaces), "observations": list(observations)}
         )
@@ -99,26 +126,50 @@ class MyDataModule(pl.LightningDataModule):
             self.train_dataset = (
                 MyDataset2d(self.train_df, self.sequential_cond)
                 if self.two_dimensional
-                else MyDataset(self.train_df, self.sequential_cond)
+                else MyDataset(
+                    self.train_df,
+                    self.sequential_cond,
+                    self.random_subsequence,
+                    self.pad_all,
+                    self.dict_output,
+                )
             )
             self.val_dataset = (
                 MyDataset2d(self.val_df, self.sequential_cond)
                 if self.two_dimensional
-                else MyDataset(self.val_df, self.sequential_cond)
+                else MyDataset(
+                    self.val_df,
+                    self.sequential_cond,
+                    self.random_subsequence,
+                    self.pad_all,
+                    self.dict_output,
+                )
             )
 
         elif stage == "test":
             self.test_dataset = (
                 MyDataset2d(self.test_df, self.sequential_cond)
                 if self.two_dimensional
-                else MyDataset(self.test_df, self.sequential_cond)
+                else MyDataset(
+                    self.test_df,
+                    self.sequential_cond,
+                    self.random_subsequence,
+                    self.pad_all,
+                    self.dict_output,
+                )
             )
 
         elif stage == "predict":
             self.test_dataset = (
                 MyDataset2d(self.test_df, self.sequential_cond)
                 if self.two_dimensional
-                else MyDataset(self.test_df, self.sequential_cond)
+                else MyDataset(
+                    self.test_df,
+                    self.sequential_cond,
+                    self.random_subsequence,
+                    self.pad_all,
+                    self.dict_output,
+                )
             )
 
         else:
@@ -130,9 +181,7 @@ class MyDataModule(pl.LightningDataModule):
             self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=collate_fn_for_trans
-            if self.path_data_json is not None
-            else None,
+            collate_fn=collate_fn_for_trans if self.use_collate_fn else None,
         )
 
     def val_dataloader(self):
@@ -141,9 +190,7 @@ class MyDataModule(pl.LightningDataModule):
             self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=collate_fn_for_trans
-            if self.path_data_json is not None
-            else None,
+            collate_fn=collate_fn_for_trans if self.use_collate_fn else None,
         )
 
     def test_dataloader(self):
@@ -152,9 +199,7 @@ class MyDataModule(pl.LightningDataModule):
             self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=collate_fn_for_trans
-            if self.path_data_json is not None
-            else None,
+            collate_fn=collate_fn_for_trans if self.use_collate_fn else None,
         )
 
     def predict_dataloader(self):
@@ -162,9 +207,7 @@ class MyDataModule(pl.LightningDataModule):
             self.test_dataset,
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=collate_fn_for_trans
-            if self.path_data_json is not None
-            else None,
+            collate_fn=collate_fn_for_trans if self.use_collate_fn else None,
         )
 
 

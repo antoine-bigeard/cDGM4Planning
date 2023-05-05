@@ -58,19 +58,35 @@ def create_figs_1D_spillpoint(
 
 
 def create_figs_1D_seq_spillpoint(
-    samples_surfaces_seq, conditions=None, img_dir=None, save=True
+    samples_surfaces_seq,
+    conditions=None,
+    img_dir=None,
+    save=True,
+    pad_to_block=None,
+    test=False,
 ):
     global_img_dir = img_dir
-    if conditions is not None:
-        real_pos_injector = 1
+
     for k, sample_surfaces in enumerate(samples_surfaces_seq):
         img_dir = os.path.join(global_img_dir, f"seq_{k}")
+        if conditions is not None:
+            real_pos_injector = (
+                torch.argmax(conditions[k, 1, 0, 0, :]).detach().cpu().squeeze()
+                if conditions.size(2) >= 1
+                else -1
+            )
         for i in range(len(sample_surfaces)):
+            if pad_to_block is not None and pad_to_block[k, i] == 1:
+                break
             out_img_path_dir = os.path.join(img_dir, f"step_{i}")
             os.makedirs(out_img_path_dir, exist_ok=True)
             for j in range(sample_surfaces[i].size(0)):
                 out_img_path = os.path.join(out_img_path_dir, f"sample_{j}.png")
-                plt.figure()
+                fig, ax = plt.subplots()
+                if test:
+                    plt.plot(sample_surfaces[i][j, 0, :].detach().cpu().squeeze())
+                    plt.savefig(out_img_path)
+                    continue
                 x = range(sample_surfaces[i].size(2))
                 # top_surface = sample_surfaces[i][j, 0, :].detach().cpu().squeeze()
                 top_surface = sample_surfaces[i][j, 1, :].detach().cpu().squeeze()
@@ -83,7 +99,8 @@ def create_figs_1D_seq_spillpoint(
                 )
                 cbar = plt.colorbar(scatter, orientation="horizontal")
                 if conditions is not None:
-                    plt.axvline(real_pos_injector, color="r", linestyle="--")
+                    if real_pos_injector != -1:
+                        plt.axvline(real_pos_injector, color="r", linestyle="--")
                     # conditions is a list of tensors that have size [batch_size, 5, 32]
                     # channel 0 is the one-hot encoded position for the porosity measurement
                     # channel 1 is the one-hot encoded position for the value of porosity
@@ -92,11 +109,11 @@ def create_figs_1D_seq_spillpoint(
                     # channel 4 is the one-hot encoded position for the value of the volume of injected CO2
                     # plot the porosity measurement as a point above the previous porosity scatter
                     porosity_measurement = torch.nonzero(
-                        conditions[j, k, i, 3, :].detach().cpu()
+                        conditions[k, i, j, 3, :].detach().cpu()
                     ).squeeze()
                     if porosity_measurement.shape != torch.Size([0]):
                         porosity_measurement_value = (
-                            conditions[j, k, i, 4, porosity_measurement].detach().cpu()
+                            conditions[k, i, j, 4, porosity_measurement].detach().cpu()
                         )
                         plt.scatter(
                             [porosity_measurement]
@@ -115,33 +132,51 @@ def create_figs_1D_seq_spillpoint(
                     # plot the CO2 measurement place as a point of height corresponding to the depth
                     # of the CO2
                     co2_measurement = torch.nonzero(
-                        conditions[j, k, i, 5, :].detach().cpu()
-                    ).squeeze()
+                        conditions[k, i, j, 5, :].detach().cpu()
+                    ).squeeze(1)
                     if co2_measurement.shape != torch.Size([0]):
+                        co2_measurement_depth = (
+                            conditions[k, i, j, 6, co2_measurement].detach().cpu()
+                        )
                         co2_measurement_value = (
-                            conditions[j, k, i, 6, co2_measurement].detach().cpu()
+                            conditions[k, i, j, 7, co2_measurement].detach().cpu()
                         )
-                        plt.scatter(
-                            [co2_measurement]
-                            if len(co2_measurement.shape) == 0
-                            else co2_measurement.tolist(),
-                            [top_surface[co2_measurement] - co2_measurement_value]
-                            if len(co2_measurement.shape) == 0
-                            else (
-                                top_surface[co2_measurement] - co2_measurement_value
-                            ).tolist(),
-                            s=25,
-                            c="red",
-                            label="CO2 measurement",
-                            marker="x",
-                        )
+                        for co2_pos, depth, width in zip(
+                            co2_measurement,
+                            co2_measurement_depth,
+                            co2_measurement_value,
+                        ):
+                            pt1 = (co2_pos, depth)
+                            pt2 = (co2_pos, depth - width)
+                            ax.plot(pt1[0], pt1[1], "o", color="red")
+                            ax.plot(pt2[0], pt2[1], "o", color="red")
+                            ax.annotate(
+                                "",
+                                xy=pt2,
+                                xycoords="data",
+                                xytext=pt1,
+                                textcoords="data",
+                                arrowprops=dict(arrowstyle="->", color="red", lw=3),
+                            )
+                        # plt.scatter(
+                        #     [co2_measurement]
+                        #     if len(co2_measurement.shape) == 0
+                        #     else co2_measurement.tolist(),
+                        #     [top_surface[co2_measurement] - co2_measurement_value]
+                        #     if len(co2_measurement.shape) == 0
+                        #     else (
+                        #         top_surface[co2_measurement] - co2_measurement_value
+                        #     ).tolist(),
+                        #     s=25,
+                        #     c="red",
+                        #     label="CO2 measurement",
+                        #     marker="x",
+                        # )
                         # add injected volume in the title
-                        injected_volume = (
-                            conditions[j, k, i, 7, co2_measurement].detach().cpu()
-                        )
-                        plt.title(f"Injected volume: {injected_volume.sum()}")
-                    else:
-                        plt.title("Injected volume: 0")
+                        # injected_volume = (
+                        #     conditions[j, k, i, 7, co2_measurement].detach().cpu()
+                        # )
+                        # plt.title(f"Injected volume: {injected_volume.sum()}")
                 plt.plot(x, top_surface, color="black", label="top surface")
                 plt.fill_between(
                     x,
@@ -192,6 +227,18 @@ def padding_data(conditions):
 def collate_fn_for_trans(batch):
     tgt = []
     src = []
+    if isinstance(batch[0], dict):
+        tgt = []
+        src = []
+        for sample in batch:
+            tgt_sample, src_sample = sample["surfaces"], sample["observations"]
+            tgt.append(tgt_sample)
+            src.append(src_sample)
+        tgt = padding_data(tgt)
+        src = padding_data(src)
+
+        return {"surfaces": tgt, "observations": src}
+
     for sample in batch:
         tgt_sample, src_sample = sample[0], sample[1]
         tgt.append(tgt_sample)
