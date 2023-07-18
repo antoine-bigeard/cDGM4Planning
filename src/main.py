@@ -1,7 +1,7 @@
 import sys
 
 sys.path.insert(0, ".")
-sys.path.insert(0, "./stable_diffusion")
+# sys.path.insert(0, "./stable_diffusion")
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -16,6 +16,8 @@ import argparse
 import os
 import yaml
 import torch
+
+from ray import tune
 
 
 def main(config):
@@ -109,12 +111,27 @@ if __name__ == "__main__":
         "--path_config",
         help="config path that contains config for data, models, training.",
         # default="configs_runs/sequence/stable_diff.yaml",
-        default="configs_runs/sequence/unconditional_denoising_transformer.yaml",
+        default="configs_runs/ddpms/stable_diff_test.yaml",
+        # default="configs_runs/sequence/uncond_denoising_trans.yaml",
+        # default="configs_runs/sequence/transformer_alone.yaml",
+        # default="configs_runs/sequence/dit.yaml",
+        # default="configs_runs/sequence/unconditional_denoising_transformer.yaml",
+        # default="configs_runs/sequence/uncond_trans.yaml",
+        # default="configs_runs/sequence/ddpm_transformer_100.yaml",
+        # default="configs_runs/sequence/trans_encoder.yaml",
         required=False,
     )
 
     args = parser.parse_args()
 
     config = read_yaml_config_file(args.path_config)
+
+    # config = {
+    #     "dim_model": tune.choice([256, 512]),
+    #     "num_encoder_layers": tune.choice([2, 4]),
+    #     "num_decoder_layers": 2,
+    #     "dim_feed_forward": 1024,
+    #     "time_dim": tune.choice([256, 512]),
+    # }
 
     main(config)

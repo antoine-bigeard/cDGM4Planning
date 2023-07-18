@@ -25,21 +25,13 @@ lit_model:
     surf_size: 32
   ddpm: UNet_conditional
   conf_ddpm:
-    c_in: 13
-    c_out: 5
+    c_in: 1
+    c_out: 1
     time_dim: 256
-    conditional: True
+    conditional: False
   ema: EMA
   conf_ema:
     beta: 0.995
-  encoding_layer: Transformer4Input
-  conf_encoding_layer:
-    dim_model: 256
-    num_heads: 2
-    num_encoder_layers: 1
-    num_decoder_layers: 1
-    dropout: 0.1
-    resolution: 32
   lr: 0.0002
   b1: 0.5
   b2: 0.999

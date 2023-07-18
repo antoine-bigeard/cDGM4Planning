@@ -40,6 +40,8 @@ class MyDataModule(pl.LightningDataModule):
         pad_all=False,
         use_collate_fn=False,
         dict_output=False,
+        large_dataset_hdf5=False,
+        path_large_hdf5=None,
         *args,
         **kwargs,
     ):
@@ -60,9 +62,15 @@ class MyDataModule(pl.LightningDataModule):
         self.pad_all = pad_all
         self.use_collate_fn = use_collate_fn
         self.dict_output = dict_output
+        self.large_dataset_hdf5 = large_dataset_hdf5
+        self.path_large_hdf5 = path_large_hdf5
 
     def prepare_data(self):
-        if self.path_observations_h5py is not None:
+        if self.large_dataset_hdf5:
+            with h5py.File(self.path_large_hdf5, "r") as f:
+                surfaces = [i for i in range(len(f["states"]))]
+                observations = list(surfaces)
+        elif self.path_observations_h5py is not None:
             with h5py.File(self.path_surfaces_h5py, "r") as f:
                 a_group_key = list(f.keys())[0]
                 surfaces = list(f[a_group_key])
@@ -99,6 +107,7 @@ class MyDataModule(pl.LightningDataModule):
                         # tmp_observations = observations[0]
                         surfaces = zip(tmp_surfaces, surfaces[1])
                         observations = zip(tmp_observations, observations[1])
+
         df = pd.DataFrame(
             {"surfaces": list(surfaces), "observations": list(observations)}
         )
@@ -124,7 +133,7 @@ class MyDataModule(pl.LightningDataModule):
 
         if stage == "fit":
             self.train_dataset = (
-                MyDataset2d(self.train_df, self.sequential_cond)
+                MyDataset2d(self.train_df, self.sequential_cond, self.dict_output)
                 if self.two_dimensional
                 else MyDataset(
                     self.train_df,
@@ -132,10 +141,12 @@ class MyDataModule(pl.LightningDataModule):
                     self.random_subsequence,
                     self.pad_all,
                     self.dict_output,
+                    self.large_dataset_hdf5,
+                    self.path_large_hdf5,
                 )
             )
             self.val_dataset = (
-                MyDataset2d(self.val_df, self.sequential_cond)
+                MyDataset2d(self.val_df, self.sequential_cond, self.dict_output)
                 if self.two_dimensional
                 else MyDataset(
                     self.val_df,
@@ -143,12 +154,14 @@ class MyDataModule(pl.LightningDataModule):
                     self.random_subsequence,
                     self.pad_all,
                     self.dict_output,
+                    self.large_dataset_hdf5,
+                    self.path_large_hdf5,
                 )
             )
 
         elif stage == "test":
             self.test_dataset = (
-                MyDataset2d(self.test_df, self.sequential_cond)
+                MyDataset2d(self.test_df, self.sequential_cond, self.dict_output)
                 if self.two_dimensional
                 else MyDataset(
                     self.test_df,
@@ -156,12 +169,14 @@ class MyDataModule(pl.LightningDataModule):
                     self.random_subsequence,
                     self.pad_all,
                     self.dict_output,
+                    self.large_dataset_hdf5,
+                    self.path_large_hdf5,
                 )
             )
 
         elif stage == "predict":
             self.test_dataset = (
-                MyDataset2d(self.test_df, self.sequential_cond)
+                MyDataset2d(self.test_df, self.sequential_cond, self.dict_output)
                 if self.two_dimensional
                 else MyDataset(
                     self.test_df,
@@ -169,6 +184,8 @@ class MyDataModule(pl.LightningDataModule):
                     self.random_subsequence,
                     self.pad_all,
                     self.dict_output,
+                    self.large_dataset_hdf5,
+                    self.path_large_hdf5,
                 )
             )
 

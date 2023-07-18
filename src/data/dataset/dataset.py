@@ -4,6 +4,7 @@ import torch
 from typing import Tuple
 import numpy as np
 import torch.nn.functional as F
+import h5py
 
 # from utils import transform_window
 
@@ -16,26 +17,38 @@ class MyDataset(Dataset):
         random_subsequence=False,
         pad_all=False,
         dict_output=False,
+        large_dataset_hdf5=False,
+        path_large_hdf5=None,
     ) -> None:
         self.df = df
         self.sequential_cond = sequential_cond
         self.random_subsequence = random_subsequence
         self.pad_all = pad_all
         self.dict_output = dict_output
+        self.large_dataset_hdf5 = large_dataset_hdf5
+        self.path_large_hdf5 = path_large_hdf5
+
+        if self.large_dataset_hdf5:
+            self.data = h5py.File(self.path_large_hdf5, "r")
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx: int) -> Tuple[np.array, np.array]:
         row = self.df.iloc[idx, :]
-        # surfaces, surfaces_padding_masks = torch.Tensor(row["surfaces"]), torch.Tensor(
-        #     row["surfaces_padding_masks"]
-        # )
-        # observations, observations_padding_masks = torch.Tensor(
-        #     row["observations"]
-        # ), torch.Tensor(row["observations_padding_masks"])
 
-        if self.pad_all:
+        if self.large_dataset_hdf5:
+            with h5py.File(self.path_large_hdf5, "r") as f:
+                surfaces = torch.Tensor(f[f"states/{row['surfaces']}"][:])
+                observations = torch.cat(
+                    [
+                        torch.Tensor(f[f"actions/{row['observations']}"][:]),
+                        torch.Tensor(f[f"observations/{row['observations']}"][:]),
+                    ],
+                    dim=1,
+                )
+
+        elif self.pad_all:
             surfaces, surfaces_padding_masks = torch.Tensor(
                 row["surfaces"][0]
             ), torch.Tensor(row["surfaces"][1])
@@ -47,9 +60,11 @@ class MyDataset(Dataset):
                 observations_padding_masks,
             )
 
-        surfaces, observations = torch.Tensor(row["surfaces"]), torch.Tensor(
-            row["observations"]
-        )
+        else:
+            surfaces, observations = torch.Tensor(row["surfaces"]), torch.Tensor(
+                row["observations"]
+            )
+
         if self.dict_output:
             return {
                 "surfaces": surfaces,
@@ -57,7 +72,7 @@ class MyDataset(Dataset):
             }
 
         if not self.random_subsequence:
-            return surfaces[:, [0], :], observations
+            return surfaces, observations
 
         else:
             idx = np.random.randint(1, len(surfaces) - 1)
@@ -93,9 +108,13 @@ class MyDataset2d(Dataset):
         self,
         df: pd.DataFrame,
         sequential_cond=False,
+        dict_output=False,
+        *args,
+        **kwargs,
     ) -> None:
         self.df = df
         self.sequential_cond = sequential_cond
+        self.dict_output = dict_output
 
     def __len__(self):
         return len(self.df)
@@ -103,4 +122,9 @@ class MyDataset2d(Dataset):
     def __getitem__(self, idx: int) -> Tuple[np.array, np.array]:
         row = self.df.iloc[idx, :]
         x, y = row["surfaces"], row["observations"]
+        if self.dict_output:
+            return {
+                "surfaces": x,
+                "observations": y,
+            }
         return x, y

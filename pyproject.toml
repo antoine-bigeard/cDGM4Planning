@@ -28,6 +28,9 @@ torchvision = "^0.15.1"
 taming-transformers-rom1504 = "^0.0.6"
 clip = "^0.2.0"
 transformers = "^4.28.1"
+timm = "^0.6.13"
+ray = {extras = ["tune"], version = "^2.4.0"}
+ijson = "^3.2.1"
 
 
 [tool.poetry.group.dev.dependencies]

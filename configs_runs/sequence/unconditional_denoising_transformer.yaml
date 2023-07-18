@@ -1,4 +1,4 @@
-name_experiment: unconditional_dit_tests
+name_experiment: uncond_seq2seq
 seed: 1234
 mode: fit
 
@@ -23,7 +23,7 @@ lit_model:
   conf_diffusion:
     noise_steps: 100
     beta_start: 0.0001
-    beta_end: 0.02
+    beta_end: 0.05
     surf_size: 32
   ddpm: Transformer4DDPM
   conf_ddpm:
@@ -32,16 +32,16 @@ lit_model:
     resolution: 32
     dim_model: 32
     num_heads: 8
-    num_encoder_layers: 2
-    num_decoder_layers: 2
+    num_encoder_layers: 4
+    num_decoder_layers: 4
     dropout: 0.1
-    dim_feed_forward: 2048
+    dim_feed_forward: 4096
     time_dim: 32
     conditional: False
   ema: EMA
   conf_ema:
     beta: 0.995
-  lr: 0.0002
+  lr: 0.02
   b1: 0.5
   b2: 0.999
   latent_dim: 20
@@ -55,7 +55,7 @@ lit_model:
 trainer:
   auto_lr_find: False                     
   min_epochs: 1                             
-  max_epochs: 50
+  max_epochs: 100
   fast_dev_run: false                   
   accelerator: gpu
   devices: [1]

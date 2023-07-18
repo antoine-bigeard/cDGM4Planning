@@ -19,7 +19,12 @@ import collections.abc
 
 
 def create_figs_1D_spillpoint(
-    sample_surfaces, conditions, img_dir, save=True, sequential_cond=True
+    sample_surfaces,
+    conditions,
+    img_dir,
+    save=True,
+    sequential_cond=True,
+    test=False,
 ):
     for i in range(len(sample_surfaces)):
         out_img_path_dir = os.path.join(img_dir, f"test_{i}")
@@ -28,6 +33,11 @@ def create_figs_1D_spillpoint(
             out_img_path = os.path.join(out_img_path_dir, f"sample_{j}.png")
             plt.figure()
             x = range(sample_surfaces[i].size(2))
+            if test:
+                x = sample_surfaces[i][j, 0, :].detach().cpu().squeeze()
+                plt.plot(x)
+                plt.savefig(out_img_path)
+                continue
             # top_surface = sample_surfaces[i][j, 0, :].detach().cpu().squeeze()
             top_surface = sample_surfaces[i][j, 1, :].detach().cpu().squeeze()
             co2_level = sample_surfaces[i][j, 4, :].detach().cpu().squeeze()
@@ -86,6 +96,7 @@ def create_figs_1D_seq_spillpoint(
                 if test:
                     plt.plot(sample_surfaces[i][j, 0, :].detach().cpu().squeeze())
                     plt.savefig(out_img_path)
+                    plt.close()
                     continue
                 x = range(sample_surfaces[i].size(2))
                 # top_surface = sample_surfaces[i][j, 0, :].detach().cpu().squeeze()
@@ -194,6 +205,7 @@ def create_figs_1D_seq_spillpoint(
                 )
                 plt.scatter([injector_pos], [top_surface[injector_pos]], s=25, c="r")
                 plt.savefig(out_img_path)
+                plt.close()
 
 
 def merge_actions_observations(actions, observations):
@@ -225,6 +237,28 @@ def padding_data(conditions):
 
 
 def collate_fn_for_trans(batch):
+    tgt = []
+    src = []
+    if isinstance(batch[0], dict):
+        tgt = []
+        src = []
+        for sample in batch:
+            tgt_sample, src_sample = sample["surfaces"], sample["observations"]
+            tgt.append(tgt_sample)
+            src.append(src_sample)
+        tgt = padding_data(tgt)
+        src = padding_data(src)
+
+        return {"surfaces": tgt, "observations": src}
+
+    for sample in batch:
+        tgt_sample, src_sample = sample[0], sample[1]
+        tgt.append(tgt_sample)
+        src.append(src_sample)
+    return padding_data(tgt), padding_data(src)
+
+
+def collate_fn_for_trans_(batch):
     tgt = []
     src = []
     if isinstance(batch[0], dict):

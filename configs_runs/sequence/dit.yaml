@@ -1,0 +1,70 @@
+name_experiment: dit_tests
+seed: 1234
+mode: fit
+
+datamodule:
+  path_data_json: data/spillpoint_train.json
+  # path_surfaces_h5py: data/surfaces64.hdf5
+  # path_observations_h5py: data/observations64.hdf5
+  batch_size: 50
+  shuffle_data: True
+  num_workers: 4
+  pct_train: 0.95
+  pct_val: 0.05
+  pct_test: 0
+  two_dimensional: False
+  sequential_cond: True
+  sequential_surfaces: True
+  use_collate_fn: True
+
+lit_model_type: LitDDPM1d
+lit_model:
+  diffusion: Diffusion
+  conf_diffusion:
+    noise_steps: 500
+    beta_start: 0.0001
+    beta_end: 0.02
+    surf_size: 32
+  ddpm: DiT
+  conf_ddpm:
+    input_size: 32
+    in_channels: 32
+    hidden_size: 32
+    depth: 8
+    num_heads: 8
+    mlp_ratio: 1
+    class_dropout_prob: 0.1
+  ema: EMA
+  conf_ema:
+    beta: 0.995
+  lr: 0.0002
+  b1: 0.5
+  b2: 0.999
+  latent_dim: 20
+  validation_x_shape: [1, 1, 64]
+  use_rd_y: False
+  batch_size: 100
+  cfg_scale: 0
+  n_sample_for_metric: 100
+  sequential_cond: True
+
+trainer:
+  auto_lr_find: False                     
+  min_epochs: 1                             
+  max_epochs: 100
+  fast_dev_run: false                   
+  accelerator: gpu
+  devices: [1]
+  log_every_n_steps: 10                 
+
+tensorboard_logs:
+  save_dir: logs                          
+#   name: test_res_inject
+
+checkpoint_callback:                
+  monitor: val/loss                     
+  mode: min                               
+  save_last: True                     
+  filename: best-checkpoint                  
+
+checkpoint_path: null

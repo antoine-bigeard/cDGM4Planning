@@ -1,4 +1,4 @@
-name_experiment: ddpm_trans_500
+name_experiment: ddpm_trans
 seed: 1234
 mode: fit
 
@@ -16,14 +16,16 @@ datamodule:
   sequential_cond: True
   random_subsequence: False
   use_collate_fn: True
+  large_dataset_hdf5: True
+  path_large_hdf5: data/large_splillpoint_train.hdf5
 
 lit_model_type: LitDDPM1d
 lit_model:
   diffusion: Diffusion
   conf_diffusion:
-    noise_steps: 50
+    noise_steps: 500
     beta_start: 0.0001
-    beta_end: 0.02
+    beta_end: 0.05
     surf_size: 32
   ddpm: UNet_conditional
   conf_ddpm:

@@ -23,3 +23,8 @@ nohup.out
 *logs*
 
 notebooks/
+
+/stable-diffusion
+
+*.gif
+*.png
