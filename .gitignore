@@ -5,9 +5,11 @@ notebooks/
 logs/
 old_logs/
 old_logs2/
-
+files/
+src/model/lit_model/mnist_data
 planning/models
 planning/results*
+*.png
 
 /bash_runs
 /configs_tests

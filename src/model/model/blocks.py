@@ -16,6 +16,14 @@ def l2normalize(v, eps=1e-12):
     return v / (v.norm() + eps)
 
 
+class SimpleEncodingGrav(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, y: torch.Tensor):
+        y = y.unsqueeze(1).unsqueeze(2).repeat(1, 1, 32, 1)
+
+
 class View(nn.Module):
     def __init__(self, shape):
         super().__init__()

@@ -48,3 +48,5 @@ class MyDataset2d(Dataset):
         row = self.df.iloc[idx, :]
         x, y = row["surfaces"], row["observations"]
         return x, y
+        # return x, torch.stack(list(y))
+        # return x, torch.zeros_like()

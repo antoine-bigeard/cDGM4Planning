@@ -12,6 +12,7 @@ from src.model.lit_model.metrics import *
 from src.model.lit_model.lit_model_utils import *
 from src.model.model.modules_diffusion2d import *
 from src.model.model.DDPM2d import *
+from src.model.model.vae_geoph import ConvVAE
 
 from src.utils import *
 from src.model.lit_model.metrics import compute_cond_dist
@@ -589,3 +590,131 @@ class LitDDPM2d(LitModel2d):
             self.logger.experiment.add_figure(
                 f"generated_image_{i}", fig, self.current_epoch
             )
+
+
+class LitModelVAEOre(LitModel2d):
+    def __init__(
+        self,
+        latent_dim: int,
+        lr: float,
+        batch_size: int,
+        n_sample_for_metric: int,
+        log_dir: str = "",
+        conditional=False,
+        **kwargs
+    ):
+        super().__init__()
+        self.save_hyperparameters()
+        self.lr = lr
+        self.batch_size = batch_size
+        self.log_dir = log_dir
+        self.latent_dim = latent_dim
+        self.conditional = conditional
+
+        self.vae = ConvVAE(z_dim=latent_dim, conditional=conditional).cuda()
+
+    def on_fit_start(self) -> None:
+        super().on_fit_start()
+        # self.gravity_matrix = self.gravity_matrix.to(self.device)
+        # self.train_test_batch = self.trainer.datamodule.train_dataset[:5]
+        self.train_test_batch = [
+            self.trainer.datamodule.val_dataset.__getitem__(i) for i in range(5)
+        ]
+        train_test_batch = torch.cat(
+            [torch.Tensor(d).unsqueeze(0) for d, _ in self.train_test_batch]
+        ), torch.cat([torch.Tensor(d).unsqueeze(0) for _, d in self.train_test_batch])
+        self.train_test_batch = (
+            train_test_batch
+            if len(train_test_batch[0].shape) == 4
+            else (
+                train_test_batch[0].unsqueeze(1),
+                train_test_batch[1],
+            )
+        )
+        # self.train_test_batch = torch.cat(
+        #     [d for d, _ in self.train_test_batch], dim=0
+        # ), torch.tensor([d for _, d in self.train_test_batch])
+
+    def forward(self, x):
+        return self.vae(x)
+
+    def loss_function(self, recon_x, x, mu, log_var):
+        # BCE = F.binary_cross_entropy(
+        #     recon_x.view(-1, 784), x.view(-1, 784), reduction="sum"
+        # )
+        BCE = F.mse_loss(recon_x.view(-1, 1024), x.view(-1, 1024), reduction="sum")
+        KLD = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
+        return BCE + KLD
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        if len(x.shape) < 4:
+            x = x.float().unsqueeze(1)
+
+        recon_batch, mu, log_var = self(x)
+        loss = self.loss_function(recon_batch, x, mu, log_var) / x.shape[0]
+
+        self.log(
+            "train/loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+        )
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        if len(x.shape) < 4:
+            x = x.float().unsqueeze(1)
+
+        recon_batch, mu, log_var = self(x)
+        loss = self.loss_function(recon_batch, x, mu, log_var) / x.shape[0]
+
+        self.log(
+            "train/loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+        )
+
+        return loss
+
+    def on_validation_epoch_end(self) -> None:
+        x, y = self.train_test_batch
+        x = torch.Tensor(x).float().to(self.device)
+        y = torch.Tensor(y).float().to(self.device)
+        l = [None] * len(x)
+        x = x.float()
+        y = y.float()
+
+        x_hat, mu, log_var = self(x)
+
+        plot_density_maps(
+            x.squeeze().detach().cpu().numpy(),
+            l,
+            32,
+            log_dir=self.log_dir,
+            curr_epoch=self.current_epoch,
+            suffix="real",
+        )
+
+        plot_density_maps(
+            x_hat.squeeze().detach().cpu().numpy(),
+            l,
+            32,
+            log_dir=self.log_dir,
+            curr_epoch=self.current_epoch,
+            suffix="gen",
+        )
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(
+            self.parameters(), lr=(self.lr or self.learning_rate)
+        )
+        return {
+            "optimizer": optimizer,
+            "monitor": "val/loss",
+        }

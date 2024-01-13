@@ -18,7 +18,6 @@ import torch
 
 
 def main(config):
-
     mode = config["mode"]
     checkpoint_path = config.get("checkpoint_path")
     conf_datamodule = config.get("datamodule")
@@ -101,7 +100,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--path_config",
         help="config path that contains config for data, models, training.",
-        default="configs_runs/ddpms/ddpm_ore_maps_100.yaml",
+        default="configs_runs/gravity/cvae2.yaml",
         required=False,
     )
 

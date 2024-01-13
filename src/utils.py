@@ -147,7 +147,7 @@ def create_figs_best_metrics(
     figs = []
     for i in range(y_1_idx[0].shape[0]):
         fig = plt.figure()
-        for (name, sample) in best_samples.items():
+        for name, sample in best_samples.items():
             s = sample[i].squeeze().detach().cpu()
             if name == "std":
                 samp = best_samples["best_L2"][i].squeeze().detach().cpu()
@@ -211,7 +211,7 @@ def create_figs_best_metrics_2D(
         sample_img_dir = os.path.join(img_dir, f"test_best_metric_{i}")
         os.makedirs(sample_img_dir, exist_ok=True)
         cmap = cm.viridis
-        for (name, sample) in best_samples.items():
+        for name, sample in best_samples.items():
             fig = plt.figure()
             plt.imshow(sample[i].squeeze().detach().cpu(), cmap=cmap)
             for j in range(len(y_1_idx[0][i])):
@@ -333,3 +333,107 @@ def keep_samples(measures: torch.Tensor, n: int):
     minn = measures.min()
     inter = (measures.max() - minn) / n
     return [measures[measures <= i * inter + minn].max() for i in range(n)]
+
+
+def calculate_gravity_matrix(grid_size=32, cell_size=25, observation_height=50):
+    G = np.zeros((grid_size, grid_size**2))
+
+    for row in range(grid_size):
+        for col in range(grid_size):
+            cell_center_x = (col + 0.5) * cell_size
+            cell_center_y = -(row + 0.5) * cell_size
+
+            for obs_col in range(grid_size):
+                obs_point_x = (obs_col + 0.5) * cell_size
+                distance = np.sqrt(
+                    (cell_center_x - obs_point_x) ** 2
+                    + (cell_center_y - observation_height) ** 2
+                )
+
+                angle = np.arctan2(
+                    observation_height - cell_center_y, abs(obs_point_x - cell_center_x)
+                )
+
+                vertical_component = np.sin(angle) / distance
+
+                # vertical_component = (observation_height - cell_center_y) / distance
+
+                G[obs_col, row * grid_size + col] = vertical_component
+
+    return G
+
+
+def plot_density_maps(
+    models, lines, num_cells, log_dir=None, curr_epoch=None, suffix=None
+):
+    num_models = models.shape[0]
+    if log_dir:
+        os.makedirs(os.path.join(log_dir, str(curr_epoch)), exist_ok=True)
+
+    for i, model in enumerate(models):
+        plt.figure(figsize=(10, 10))
+        plt.imshow(
+            model,
+            cmap="viridis",
+            extent=[0, num_cells, num_cells, 0],
+            # vmin=0,
+            # vmax=1,
+            # vmin=1.95,
+            # vmax=2.85,
+        )
+
+        # Plotting the lines for faults if any
+        line = lines[i]
+        if line is not None:
+            dip = line["dip"]
+            throw = line["throw"]
+            horizontal_position = line["horizontal_position"]
+            ys = [
+                fault_intersection_x(horizontal_position, dip, x)
+                for x in range(num_cells)
+            ]  # assuming this function is defined
+            plt.plot(range(num_cells), ys, "r-")  # plotting the fault line in red
+
+        plt.colorbar(label="Density")
+        plt.title(f"Density Map")
+        plt.xlabel("Cell")
+        plt.ylabel("Depth")
+        plt.tight_layout()
+        if log_dir:
+            curr_path = os.path.join(
+                log_dir,
+                str(curr_epoch),
+                f"density_map_{i}_{suffix}.png" if suffix else f"density_map_{i}.png",
+            )
+        plt.savefig(curr_path)
+        plt.close()
+
+
+def normalize_df(df, columns=["surfaces", "observations"]):
+    for col in columns:
+        df[col] = df[col].apply(lambda x: (x - x.min()) / (x.max() - x.min()))
+    return df
+
+
+def generate_G():
+    # gravitational_constant = 6.67430e-11
+    gravitational_constant = 1
+    cell_size = 25
+    nd = 32
+    measurement_height = 50
+    start_measurement = 200
+    end_measurement = 600
+
+    def compute_distance(cell_center, measurement_point):
+        return np.sqrt((cell_center[0] - measurement_point[0])**2 + (cell_center[1] - measurement_point[1])**2)
+
+    G = np.zeros((nd, nd**2))
+    cell_centers = [(i * cell_size + cell_size/2, j * cell_size + cell_size/2) for i in range(nd) for j in range(nd)]
+    measurement_points = [(np.linspace(start_measurement, end_measurement, nd)[i], measurement_height) for i in range(nd)]
+
+    for i, measurement_point in enumerate(measurement_points):
+        for j, cell_center in enumerate(cell_centers):
+            distance = compute_distance(cell_center, measurement_point)
+            G[i, j] = gravitational_constant * cell_size**2 * distance**-2
+
+    return torch.Tensor(G)

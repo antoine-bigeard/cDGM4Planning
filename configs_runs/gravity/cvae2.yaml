@@ -1,0 +1,45 @@
+name_experiment: cvae4_test       
+seed: 1234                                   
+mode: fit                                    
+
+datamodule:
+  path_surfaces_h5py: null
+  path_observations_h5py: null 
+  batch_size: 64                      
+  shuffle_data: True                         
+  num_workers: 4                             
+  pct_train: 0.9                             
+  pct_val: 0.08                              
+  pct_test: 0.02                             
+  two_dimensional: True
+  gravity_data:
+    train_path: data/gravity_data/training_data.hdf5
+    val_path: data/gravity_data/validation_data.hdf5
+    test_path: data/gravity_data/testing_data.hdf5                 
+
+lit_model_type: LitModelVAE                    
+lit_model:
+  latent_dim: 300
+  lr: 0.0001             
+  batch_size: 100                            
+  n_sample_for_metric: 100                   
+
+trainer:
+  auto_lr_find: False                        
+  min_epochs: 1                              
+  max_epochs: 50                             
+  fast_dev_run: false                        
+  accelerator: gpu
+  devices: [0]
+  log_every_n_steps: 10                      
+
+tensorboard_logs:
+  save_dir: logs_gravity                             
+
+checkpoint_callback:                         
+  # monitor: val/loss                    
+  mode: min                                  
+  save_last: True                            
+  filename: best-checkpoint                  
+
+checkpoint_path: null      
