@@ -42,6 +42,7 @@ class MyDataModule(pl.LightningDataModule):
 
     def prepare_data(self):
         if self.gravity_data:
+            """
             G = generate_G()
             train_path = self.gravity_data["train_path"]
             val_path = self.gravity_data["val_path"]
@@ -95,6 +96,7 @@ class MyDataModule(pl.LightningDataModule):
                 self.test_df = normalize_df(df)
                 # self.test_df = df
             return
+            """
         with h5py.File(self.path_surfaces_h5py, "r") as f:
             a_group_key = list(f.keys())[0]
             surfaces = list(f[a_group_key])
