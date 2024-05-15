@@ -1,0 +1,6 @@
+data_base_dir: "src/data/gravity_data/"
+
+train_length: 100
+val_length: 100
+test_length: 100
+
