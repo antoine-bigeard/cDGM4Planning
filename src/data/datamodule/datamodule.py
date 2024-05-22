@@ -7,9 +7,11 @@ from src.data.dataset.dataset import MyDataset, MyDataset2d
 import pandas as pd
 import torchvision
 
-from src.utils import normalize_df, generate_G
+from src.utils import normalize_df, generate_G, get_variable_name
+from src.data.gravity_data.gravity_data_generation import generate_gravity_matrix, compute_gravity_measure
 
 
+a = 2
 class MyDataModule(pl.LightningDataModule):
     def __init__(
         self,
@@ -41,85 +43,56 @@ class MyDataModule(pl.LightningDataModule):
         self.gravity_data = gravity_data
 
     def prepare_data(self):
-        if self.gravity_data:
-            """
-            G = generate_G()
-            train_path = self.gravity_data["train_path"]
-            val_path = self.gravity_data["val_path"]
-            test_path = self.gravity_data["test_path"]
-            with h5py.File(train_path, "r") as f:
-                a_group_key = list(f.keys())[0]
-                surfaces = list(f["x"])
-                # observations = list(f["y"])
-                x = torch.tensor(surfaces).flatten(start_dim=1).swapaxes(0, 1).float()
-                observations = list(torch.matmul(G, x).swapaxes(0, 1))
-                lines = list(f["lines"])
-                df = pd.DataFrame(
-                    {"surfaces": surfaces, "observations": observations, "lines": lines}
-                )
-                if self.shuffle_data:
-                    df = df.sample(frac=1, random_state=1).reset_index(
-                        drop=True, inplace=False
-                    )
-                self.train_df = normalize_df(df)
-                # self.train_df = df
-            with h5py.File(val_path, "r") as f:
-                a_group_key = list(f.keys())[0]
-                surfaces = list(f["x"])
-                # observations = list(f["y"])
-                x = torch.tensor(surfaces).flatten(start_dim=1).swapaxes(0, 1).float()
-                observations = list(torch.matmul(G, x).swapaxes(0, 1))
-                lines = list(f["lines"])
-                df = pd.DataFrame(
-                    {"surfaces": surfaces, "observations": observations, "lines": lines}
-                )
-                if self.shuffle_data:
-                    df = df.sample(frac=1, random_state=1).reset_index(
-                        drop=True, inplace=False
-                    )
-                self.val_df = normalize_df(df)
-                # self.val_df = df
-            with h5py.File(test_path, "r") as f:
-                a_group_key = list(f.keys())[0]
-                surfaces = list(f["x"])
-                # observations = list(f["y"])
-                x = torch.tensor(surfaces).flatten(start_dim=1).swapaxes(0, 1).float()
-                observations = list(torch.matmul(G, x).swapaxes(0, 1))
-                lines = list(f["lines"])
-                df = pd.DataFrame(
-                    {"surfaces": surfaces, "observations": observations, "lines": lines}
-                )
-                if self.shuffle_data:
-                    df = df.sample(frac=1, random_state=1).reset_index(
-                        drop=True, inplace=False
-                    )
-                self.test_df = normalize_df(df)
-                # self.test_df = df
-            return
-            """
-        with h5py.File(self.path_surfaces_h5py, "r") as f:
-            a_group_key = list(f.keys())[0]
-            surfaces = list(f[a_group_key])
-        with h5py.File(self.path_observations_h5py, "r") as f:
-            a_group_key = list(f.keys())[0]
-            observations = list(f[a_group_key])
-        df = pd.DataFrame({"surfaces": surfaces, "observations": observations})
-        if self.shuffle_data:
-            df = df.sample(frac=1, random_state=1).reset_index(drop=True, inplace=False)
-        total = len(df)
 
-        self.train_df = df.iloc[: int(total * self.pct_train)].reset_index(
-            drop=True, inplace=False
-        )
-        self.val_df = df.iloc[
-            int(total * self.pct_train) : int(total * (self.pct_train + self.pct_val))
-        ].reset_index(drop=True, inplace=False)
-        if self.pct_test > 0:
-            self.test_df = df.iloc[
-                int(total * (self.pct_train + self.pct_val)) : int(
-                    total * (self.pct_train + self.pct_val + self.pct_test)
-                )
+        if self.gravity_data:
+
+            gravity_matrix = generate_gravity_matrix()
+            train_path, val_path, test_path = self.gravity_data["train_path"], self.gravity_data["val_path"], self.gravity_data["test_path"]
+
+            for path in [train_path, val_path, test_path]:
+                with h5py.File(path, "w") as f:
+
+                    models, gravity_measures, faults = f["models"], f["gravity_measures"], f["faults"]
+
+                    df = pd.DataFrame({"surfaces": models, "observations": gravity_measures})
+            
+                    if self.shuffle_data:
+                        df = df.sample(frac=1, random_state=1).reset_index(
+                            drop=True, inplace=False
+                        )
+
+                    df_normalized = normalize_df(df)
+
+                    set_name = get_variable_name(path).split("_")[0] # "train" when path = train_path
+                    df_name = f"{set_name}_df" # "train_df" when path = train_path
+                    setattr(self, df_name, df_normalized) # sets self.train_df to the normalized dataframe when path = train_path
+
+        # Not a gravity dataset
+        else:
+            
+            with h5py.File(self.path_surfaces_h5py, "r") as f:
+                a_group_key = list(f.keys())[0]
+                surfaces = list(f[a_group_key])
+            with h5py.File(self.path_observations_h5py, "r") as f:
+                a_group_key = list(f.keys())[0]
+                observations = list(f[a_group_key])
+            df = pd.DataFrame({"surfaces": surfaces, "observations": observations})
+            if self.shuffle_data:
+                df = df.sample(frac=1, random_state=1).reset_index(drop=True, inplace=False)
+            total = len(df)
+
+            self.train_df = df.iloc[: int(total * self.pct_train)].reset_index(
+                drop=True, inplace=False
+            )
+            self.val_df = df.iloc[
+                int(total * self.pct_train) : int(total * (self.pct_train + self.pct_val))
             ].reset_index(drop=True, inplace=False)
+            if self.pct_test > 0:
+                self.test_df = df.iloc[
+                    int(total * (self.pct_train + self.pct_val)) : int(
+                        total * (self.pct_train + self.pct_val + self.pct_test)
+                    )
+                ].reset_index(drop=True, inplace=False)
 
     def setup(self, stage="fit"):  # stage = fit or test or predict
         self.prepare_data()

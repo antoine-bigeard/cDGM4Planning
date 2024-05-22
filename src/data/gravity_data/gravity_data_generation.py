@@ -157,8 +157,8 @@ def generate_models(
     if save_model:
         with h5py.File(path_save, "w") as f:
             # just concatenate all models and gravity measures and faults so that you can just save with the keys x for the models and y for the gravity measures and faults for the faults
-            f.create_dataset("x", data=np.array(models))
-            f.create_dataset("y", data=np.array(gravity_measures))
+            f.create_dataset("models", data=np.array(models))
+            f.create_dataset("gravity_measures", data=np.array(gravity_measures))
             f.create_dataset("faults", data=np.array(faults))
 
     return models, gravity_measures, faults
@@ -268,21 +268,22 @@ def plot_models_and_gravity_data(models, gravity_data_list):
 
 
 if __name__ == "__main__":
-    # num_models = 10000
-    # models, all_gravity_data = generate_models(
-    #     num_models,
+    num_models = 100
+    models, all_gravity_data, _ = generate_models(
+        num_models,
+        path_save="C:\\Users\\sbarr\\Desktop\\cDGM4Planning\\src\\data\\gravity_data\\train_data.hdf5",
     #     path_save="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/train_data.hdf5",
-    #     save_model=True,
-    # )
+        save_model=True,
+    )
 
     # print("Train set generated successfully!")
 
-    num_models = 8
-    models, all_gravity_data, fault = generate_models(
-        num_models,
-        # path_save="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/val_data.hdf5",
-        # save_model=True,
-    )
+    # num_models = 8
+    # models, all_gravity_data, _ = generate_models(
+    #     num_models,
+    #     path_save="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/val_data.hdf5",
+    #     save_model=True,
+    # )
 
     # print("Val set generated successfully!")
 

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import os
 import seaborn as sns
 import random as rd
-
+import inspect
 import collections.abc
 
 
@@ -437,3 +437,10 @@ def generate_G():
             G[i, j] = gravitational_constant * cell_size**2 * distance**-2
 
     return torch.Tensor(G)
+
+
+def get_variable_name(var):
+    frame = inspect.currentframe().f_back
+    for name, value in frame.f_locals.items():
+        if value is var:
+            return name
