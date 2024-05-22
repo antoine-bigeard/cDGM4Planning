@@ -161,7 +161,7 @@ def generate_models(
             f.create_dataset("y", data=np.array(gravity_measures))
             f.create_dataset("faults", data=np.array(faults))
 
-    return models, gravity_measures
+    return models, gravity_measures, faults
 
 
 def compute_gravity_anomaly(gamma, Y1, Y2, Z1, Z2):
@@ -278,7 +278,7 @@ if __name__ == "__main__":
     # print("Train set generated successfully!")
 
     num_models = 8
-    models, all_gravity_data = generate_models(
+    models, all_gravity_data, fault = generate_models(
         num_models,
         # path_save="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/val_data.hdf5",
         # save_model=True,
