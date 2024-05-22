@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 from tqdm import tqdm
+import os
 
 
 def generate_layer_thickness(lower_bound, upper_bound):
@@ -33,7 +34,6 @@ def add_ellipse(model, center, axes, density):
     return model
 
 
-# Function to add a fault to the model given the dip angle and throw
 def add_fault(model, dip_degrees, throw, fault_x):
     dip = np.radians(dip_degrees)
     height, width = model.shape
@@ -65,8 +65,6 @@ def add_fault(model, dip_degrees, throw, fault_x):
     return faulted_model
 
 
-
-
 def generate_models(
     num_models=10000, grid_size=(32, 32), path_save=None, save_model=False
 ):
@@ -81,20 +79,19 @@ def generate_models(
         list: A list of generated models, where each model is a 2D numpy array representing the density of each grid cell.
     """
 
-    models = []
-    gravity_measures = []
-    faults = []
+    models, gravity_measures, faults = [], [], []
+    
     table_bounds = [(-1, -1), (140, 200), (40, 100), (180, 240), (280, 360)]
     densities = [2.3, 2.6, 2.4, 2.6, 2.8]
     ellipse_density = 2
     ellipse_axes_bound = [2, 10]
-    throw_bound = [-5, 5]
     dip_range = (-30, 30)
     throw_range = (1, 5)
 
     grid_depth = grid_size[0]
 
-    gravity_matrix = generate_matrices(64, 32, 12.5, 25, 50)
+    gravity_matrix = generate_gravity_matrix()
+
 
     for _ in tqdm(range(num_models)):
         model = np.zeros(grid_size)
@@ -120,15 +117,6 @@ def generate_models(
             model[:current_layer, :] = densities[0]  # Layer 1 fills remaining space
 
 
-        # TODO: Add faults
-        if np.random.rand() < 0.8:
-            throw = np.random.randint(-5, 5)
-            dip = np.random.uniform(60, 120)
-            horizontal_pos = np.random.randint(0, model.shape[1])
-    
-            model = add_fault(model, throw, dip, horizontal_pos)
-        else:
-            throw, dip, horizontal_pos = None, None, None
 
         if np.random.rand() < 0.7:
             ellipse_center = (
@@ -154,12 +142,15 @@ def generate_models(
         else:
             fault_sum_up = [False, 0, 0, 0]
 
-        # gravity_measure = compute_gravity_data2(model, gravity_matrix)
+    
+        gravity_measure = compute_gravity_measure(model, gravity_matrix)
 
-        gravity_measure = compute_gravity_data(model)
 
-        gravity_measures.append(gravity_measure)
+
         faults.append(fault_sum_up)
+        
+        gravity_measures.append(gravity_measure)
+        
 
         models.append(model)
 
@@ -173,7 +164,7 @@ def generate_models(
     return models, gravity_measures
 
 
-def gravity_anomaly(gamma, Y1, Y2, Z1, Z2):
+def compute_gravity_anomaly(gamma, Y1, Y2, Z1, Z2):
     factor = (
         Y2 * np.log2((Y2**2 + Z2**2) / (Y2**2 + Z1**2))
         + Y1 * np.log2((Y1**2 + Z1**2) / (Y1**2 + Z2**2))
@@ -185,100 +176,24 @@ def gravity_anomaly(gamma, Y1, Y2, Z1, Z2):
     return Gz
 
 
-def compute_gravity_data2(model, gravity_matrix):
+def compute_gravity_measure(model, gravity_matrix):
     dense_model = np.repeat(model, 2, axis=1)
     # multiply elementwise gravity_matrix with dense_model and sum on dimensions 1 and 2
     gravity_data = []
     for i in range(32):
         gravity_data.append(np.sum(np.multiply(gravity_matrix[i], dense_model)))
 
-    # dense_model = np.repeat(dense_model[None, :, :], 32, axis=0)
-    # gravity_data = np.sum(gravity_matrix * dense_model, axis=(1, 2))
+    gravity_data -= gravity_data[0]
 
     return gravity_data
 
 
-def generate_matrices(
-    grid_width,
-    grid_height,
-    cell_width,
-    cell_height,
-    observer_height,
-    gamma=0.0000000000667,
-):
-    # Generate random measurement points
-    measurement_points = np.random.randint(212.5, 600, 32)
 
-    gravity_matrix = np.zeros((32, grid_height, grid_width))
+def generate_gravity_matrix( observer_height=50, cell_width=12.5, cell_height=25, grid_height=32, grid_width=64, n_measurement_points=32):
 
-    # Compute gravity data at each measurement point
-    for i, point_y in enumerate(measurement_points):
-        for col in range(grid_width):
-            for row in range(grid_height):
-                Z1 = row * cell_height + observer_height
-                Z2 = (row + 1) * cell_height + observer_height
+    measurement_points = np.linspace(212.5, 600, n_measurement_points)
+    gravity_matrix = np.zeros((n_measurement_points, grid_height, grid_width))
 
-                ya = abs((col + 1) * cell_width - point_y)
-                yb = abs(col * cell_width - point_y)
-                Y1 = min(ya, yb)
-                Y2 = max(ya, yb)
-
-                if Y1 <= 200 and Y2 <= 200:
-                    gravity_matrix[i, row, col] = gravity_anomaly(gamma, Y1, Y2, Z1, Z2)
-                else:
-                    gravity_matrix[i, row, col] = 0
-
-    return gravity_matrix
-
-
-# def compute_gravity_data(model):
-#     dense_model = np.repeat(model, 2, axis=1)
-#     cell_width = 12.5
-#     cell_height = 25
-#     grid_height = dense_model.shape[0]
-#     grid_width = dense_model.shape[1]
-#     measurement_points = np.linspace(200, 600, 33)
-#     observer_height = 50
-#     gravity_data = np.zeros(len(measurement_points))
-
-#     # Compute gravity at each measurement point
-#     for i, point_y in enumerate(measurement_points):
-#         for col in range(grid_width):
-#             for row in range(grid_height):
-#                 # Coordinates of the prism in meters
-#                 Z1 = row * cell_height + observer_height
-#                 Z2 = (row + 1) * cell_height + observer_height
-
-#                 ya = abs((col + 1) * cell_width - point_y)
-#                 yb = abs(col * cell_width - point_y)
-#                 Y1 = min(ya, yb)
-#                 Y2 = max(ya, yb)
-
-#                 # Add the gravity effect of the current cell
-#                 # gravity_data[i] += gravity_anomaly(dense_model[row][col], Y1, Y2, Z1, Z2)
-
-#                 if Y1 <= 200 and Y2 <= 200:
-#                     gravity_data[i] += gravity_anomaly(
-#                         dense_model[row][col], Y1, Y2, Z1, Z2
-#                     )
-
-#     # Normalize gravity data
-#     gravity_data -= gravity_data[0]
-
-#     return gravity_data
-
-
-def compute_gravity_data(model):
-    dense_model = np.repeat(model, 2, axis=1)
-    cell_width = 12.5
-    cell_height = 25
-    grid_height = dense_model.shape[0]
-    grid_width = dense_model.shape[1]
-    measurement_points = np.linspace(212.5, 600, 32)
-    observer_height = 50
-    gravity_data = np.zeros(len(measurement_points))
-
-    # Compute gravity at each measurement point
     gamma = 0.0000000000667
     for i, point_y in enumerate(measurement_points):
         for col in range(grid_width):
@@ -292,18 +207,12 @@ def compute_gravity_data(model):
                 Y1 = min(ya, yb)
                 Y2 = max(ya, yb)
 
-                # Add the gravity effect of the current cell
-                # gravity_data[i] += gravity_anomaly(dense_model[row][col], Y1, Y2, Z1, Z2)
-
                 if Y1 <= 200 and Y2 <= 200:
-                    gravity_data[i] += (
-                        gravity_anomaly(gamma, Y1, Y2, Z1, Z2) * dense_model[row][col]
+                    gravity_matrix[i, row, col] = compute_gravity_anomaly(
+                        gamma, Y1, Y2, Z1, Z2
                     )
 
-    # Normalize gravity data
-    gravity_data -= gravity_data[0]
-
-    return gravity_data
+    return  gravity_matrix
 
 
 
@@ -349,9 +258,12 @@ def plot_models_and_gravity_data(models, gravity_data_list):
         cax, ax=axs[::2, :].ravel().tolist(), shrink=0.95
     )  # Add a single color bar for all model plots
     plt.tight_layout()  # Adjust layout to prevent overlap
-    plt.savefig(
-        "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/models_and_gravity_data.png"
-    )
+    
+    # if the path exists:
+    path_saving_antoine = "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/models_and_gravity_data.png"
+    if os.path.exists(path_saving_antoine):
+        plt.savefig(path_saving_antoine)
+    
     plt.show()
 
 
@@ -372,7 +284,7 @@ if __name__ == "__main__":
         # save_model=True,
     )
 
-    print("Val set generated successfully!")
+    # print("Val set generated successfully!")
 
     # open the saved models, gravity measures and faults and plot it
     # with h5py.File(
