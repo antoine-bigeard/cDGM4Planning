@@ -1,6 +1,6 @@
 import pytorch_lightning as pl
 
-from src.model.lit_model.lit_models2d import LitDCGAN2d, LitDDPM2d
+from src.model.lit_model.lit_models2d import LitDCGAN2d, LitDDPM2d, LitModelVAEOre
 from src.model.model.DCGAN2d import LargeGeneratorInject2d, LargerDiscriminator2d
 from src.model.model.DDPM2d import Diffusion2d
 from src.model.model.modules_diffusion2d import UNet_conditional2d, EMA2d

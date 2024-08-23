@@ -364,41 +364,60 @@ def calculate_gravity_matrix(grid_size=32, cell_size=25, observation_height=50):
 
 
 def plot_density_maps(
-    models, lines, num_cells, log_dir=None, curr_epoch=None, suffix=None
+    models,
+    y,
+    num_cells,
+    log_dir=None,
+    curr_epoch=None,
+    suffix=None,
+    pred_grav_data=None,
 ):
     num_models = models.shape[0]
     if log_dir:
         os.makedirs(os.path.join(log_dir, str(curr_epoch)), exist_ok=True)
 
     for i, model in enumerate(models):
+        # plot y (condition) on the side of density map on the sample plot
         plt.figure(figsize=(10, 10))
+
+        plt.subplot(1, 2, 1)
+        plt.plot(y[i])
+        plt.title(f"Condition")
+
+        plt.subplot(1, 2, 2)
         plt.imshow(
             model,
             cmap="viridis",
             extent=[0, num_cells, num_cells, 0],
-            # vmin=0,
-            # vmax=1,
-            # vmin=1.95,
-            # vmax=2.85,
+            vmin=0,
+            vmax=1,
         )
-
-        # Plotting the lines for faults if any
-        line = lines[i]
-        if line is not None:
-            dip = line["dip"]
-            throw = line["throw"]
-            horizontal_position = line["horizontal_position"]
-            ys = [
-                fault_intersection_x(horizontal_position, dip, x)
-                for x in range(num_cells)
-            ]  # assuming this function is defined
-            plt.plot(range(num_cells), ys, "r-")  # plotting the fault line in red
-
         plt.colorbar(label="Density")
         plt.title(f"Density Map")
         plt.xlabel("Cell")
         plt.ylabel("Depth")
         plt.tight_layout()
+
+        if pred_grav_data is not None:
+            plt.subplot(1, 2, 1)
+            plt.plot(pred_grav_data[i])
+            plt.title(f"Predicted Gravity Data")
+
+        # plt.imshow(
+        #     model,
+        #     cmap="viridis",
+        #     extent=[0, num_cells, num_cells, 0],
+        #     # vmin=0,
+        #     # vmax=1,
+        #     # vmin=1.95,
+        #     # vmax=2.85,
+        # )
+
+        # plt.colorbar(label="Density")
+        # plt.title(f"Density Map")
+        # plt.xlabel("Cell")
+        # plt.ylabel("Depth")
+        # plt.tight_layout()
         if log_dir:
             curr_path = os.path.join(
                 log_dir,
@@ -425,11 +444,21 @@ def generate_G():
     end_measurement = 600
 
     def compute_distance(cell_center, measurement_point):
-        return np.sqrt((cell_center[0] - measurement_point[0])**2 + (cell_center[1] - measurement_point[1])**2)
+        return np.sqrt(
+            (cell_center[0] - measurement_point[0]) ** 2
+            + (cell_center[1] - measurement_point[1]) ** 2
+        )
 
     G = np.zeros((nd, nd**2))
-    cell_centers = [(i * cell_size + cell_size/2, j * cell_size + cell_size/2) for i in range(nd) for j in range(nd)]
-    measurement_points = [(np.linspace(start_measurement, end_measurement, nd)[i], measurement_height) for i in range(nd)]
+    cell_centers = [
+        (i * cell_size + cell_size / 2, j * cell_size + cell_size / 2)
+        for i in range(nd)
+        for j in range(nd)
+    ]
+    measurement_points = [
+        (np.linspace(start_measurement, end_measurement, nd)[i], measurement_height)
+        for i in range(nd)
+    ]
 
     for i, measurement_point in enumerate(measurement_points):
         for j, cell_center in enumerate(cell_centers):

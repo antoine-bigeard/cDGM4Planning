@@ -15,7 +15,6 @@ from src.model.model.DDPM2d import *
 from src.model.model.vae_geoph import ConvVAE
 
 from src.utils import *
-from src.model.lit_model.metrics import compute_cond_dist
 
 import copy
 import json
@@ -601,7 +600,9 @@ class LitModelVAEOre(LitModel2d):
         n_sample_for_metric: int,
         log_dir: str = "",
         conditional=False,
-        **kwargs
+        use_cond_loss=False,
+        validation_x_shape=None,
+        **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -610,33 +611,20 @@ class LitModelVAEOre(LitModel2d):
         self.log_dir = log_dir
         self.latent_dim = latent_dim
         self.conditional = conditional
+        self.use_cond_loss = use_cond_loss
+        self.validation_x_shape = validation_x_shape
 
-        self.vae = ConvVAE(z_dim=latent_dim, conditional=conditional).cuda()
+        self.vae = ConvVAE(
+            z_dim=latent_dim, conditional=conditional, gravity_model=False
+        ).cuda()
 
     def on_fit_start(self) -> None:
         super().on_fit_start()
-        # self.gravity_matrix = self.gravity_matrix.to(self.device)
-        # self.train_test_batch = self.trainer.datamodule.train_dataset[:5]
-        self.train_test_batch = [
-            self.trainer.datamodule.val_dataset.__getitem__(i) for i in range(5)
-        ]
-        train_test_batch = torch.cat(
-            [torch.Tensor(d).unsqueeze(0) for d, _ in self.train_test_batch]
-        ), torch.cat([torch.Tensor(d).unsqueeze(0) for _, d in self.train_test_batch])
-        self.train_test_batch = (
-            train_test_batch
-            if len(train_test_batch[0].shape) == 4
-            else (
-                train_test_batch[0].unsqueeze(1),
-                train_test_batch[1],
-            )
-        )
-        # self.train_test_batch = torch.cat(
-        #     [d for d, _ in self.train_test_batch], dim=0
-        # ), torch.tensor([d for _, d in self.train_test_batch])
 
-    def forward(self, x):
-        return self.vae(x)
+        self.train_test_batch = self.trainer.datamodule.val_dataset[:5]
+
+    def forward(self, x, y):
+        return self.vae(x, y)
 
     def loss_function(self, recon_x, x, mu, log_var):
         # BCE = F.binary_cross_entropy(
@@ -648,10 +636,11 @@ class LitModelVAEOre(LitModel2d):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+        x, y = x.float(), y.float()
         if len(x.shape) < 4:
             x = x.float().unsqueeze(1)
 
-        recon_batch, mu, log_var = self(x)
+        recon_batch, mu, log_var = self(x, y)
         loss = self.loss_function(recon_batch, x, mu, log_var) / x.shape[0]
 
         self.log(
@@ -666,10 +655,11 @@ class LitModelVAEOre(LitModel2d):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
+        x, y = x.float(), y.float()
         if len(x.shape) < 4:
             x = x.float().unsqueeze(1)
 
-        recon_batch, mu, log_var = self(x)
+        recon_batch, mu, log_var = self(x, y)
         loss = self.loss_function(recon_batch, x, mu, log_var) / x.shape[0]
 
         self.log(
@@ -683,32 +673,37 @@ class LitModelVAEOre(LitModel2d):
         return loss
 
     def on_validation_epoch_end(self) -> None:
-        x, y = self.train_test_batch
-        x = torch.Tensor(x).float().to(self.device)
-        y = torch.Tensor(y).float().to(self.device)
-        l = [None] * len(x)
-        x = x.float()
-        y = y.float()
+        img_dir = os.path.join(self.log_dir, f"epoch_{self.current_epoch}")
+        os.makedirs(img_dir, exist_ok=True)
 
-        x_hat, mu, log_var = self(x)
+        sample_surfaces = []
 
-        plot_density_maps(
-            x.squeeze().detach().cpu().numpy(),
-            l,
-            32,
-            log_dir=self.log_dir,
-            curr_epoch=self.current_epoch,
-            suffix="real",
+        for s in range(self.validation_x.size(0)):
+            sample_surfaces.append(
+                self(
+                    torch.cat(
+                        [self.validation_x[s].unsqueeze(0)] * self.validation_x.size(0),
+                        0,
+                    ).cuda(),
+                    torch.cat(
+                        [self.validation_y[s].unsqueeze(0)] * self.validation_x.size(0),
+                        0,
+                    ).cuda(),
+                )[0]
+            )
+
+        figs = create_figs_2D(
+            sample_surfaces,
+            self.y_1_idxs,
+            img_dir,
+            save=True,
+            sequential_cond=False,
         )
 
-        plot_density_maps(
-            x_hat.squeeze().detach().cpu().numpy(),
-            l,
-            32,
-            log_dir=self.log_dir,
-            curr_epoch=self.current_epoch,
-            suffix="gen",
-        )
+        for i, fig in enumerate(figs):
+            self.logger.experiment.add_figure(
+                f"generated_image_{i}", fig, self.current_epoch
+            )
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(

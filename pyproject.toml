@@ -21,6 +21,7 @@ vector-quantize-pytorch = "^0.10.14"
 tikzplotlib = "^0.10.1"
 tensorboard = "^2.12.0"
 matplotlib2tikz = "^0.7.6"
+scikit-learn = "^1.5.0"
 
 
 [tool.poetry.group.dev.dependencies]

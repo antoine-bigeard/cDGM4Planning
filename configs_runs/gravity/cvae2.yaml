@@ -13,16 +13,17 @@ datamodule:
   pct_test: 0.02                             
   two_dimensional: True
   gravity_data:
-    train_path: data/gravity_data/training_data.hdf5
-    val_path: data/gravity_data/validation_data.hdf5
-    test_path: data/gravity_data/testing_data.hdf5                 
+    train_path: data/gravity_data/train_data_new.hdf5
+    val_path: data/gravity_data/val_data_new.hdf5
+    test_path: data/gravity_data/test_data_new.hdf5               
 
 lit_model_type: LitModelVAE                    
 lit_model:
-  latent_dim: 300
-  lr: 0.0001             
-  batch_size: 100                            
-  n_sample_for_metric: 100                   
+  latent_dim: 256
+  lr: 0.0002  
+  batch_size: 64
+  n_sample_for_metric: 100
+  conditional: True            
 
 trainer:
   auto_lr_find: False                        

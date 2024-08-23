@@ -4,6 +4,15 @@ import torch
 import time
 from src.utils import get_idx_val
 
+# from density_coverage import compute_prdc
+
+
+def density(preds, targets, nearest_k=4):
+    fake_features = preds.view(preds.shape[0], -1).cpu().numpy()
+    real_features = targets.view(targets.shape[0], -1).cpu().numpy()
+
+    return compute_prdc(real_features, fake_features, nearest_k)
+
 
 def compute_L2(preds, targets, p=2, y_1_idxs=None):
     # return (preds-targets).square().sum(dim=(1,2,3)).sqrt()
@@ -70,13 +79,15 @@ def compute_metrics(samples, real_x, y, metrics_names, n_sample_for_metric):
                 (
                     min_metric.values.squeeze(),
                     mean_metric.squeeze(),
-                    samples[min_metric.indices.squeeze()].view(
-                        initial_samples_shape[1],
-                        initial_samples_shape[2],
-                        initial_samples_shape[3],
-                    )
-                    if len(initial_samples_shape) == 4
-                    else samples[min_metric.indices.squeeze()],
+                    (
+                        samples[min_metric.indices.squeeze()].view(
+                            initial_samples_shape[1],
+                            initial_samples_shape[2],
+                            initial_samples_shape[3],
+                        )
+                        if len(initial_samples_shape) == 4
+                        else samples[min_metric.indices.squeeze()]
+                    ),
                 )
             )
 

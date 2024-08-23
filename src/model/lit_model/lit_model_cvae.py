@@ -10,10 +10,17 @@ import copy
 
 from collections import defaultdict
 from src.model.model.vae_geoph import Encoder, Decoder, VAE, ConvVAE
-from src.utils import calculate_gravity_matrix, plot_density_maps
+from src.data.gravity_data.gravity_data_generation import (
+    generate_gravity_matrix,
+    compute_gravity_measure_batch,
+)
+from src.utils import plot_density_maps
 from src.model.model.DDPM2d import Diffusion2d
 from src.model.model.modules_diffusion2d import UNet_conditional2d, EMA2d
 from src.model.model.blocks import SimpleEncodingGrav
+from src.model.lit_model.metrics import *
+
+import json
 
 
 def ConvBlock(in_channels, out_channels, kernel_size):
@@ -72,7 +79,9 @@ class LitModelVAE(pl.LightningModule):
         n_sample_for_metric: int,
         log_dir: str = "",
         conditional=False,
-        **kwargs
+        gravity_model=True,
+        use_cond_loss=False,
+        **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -81,48 +90,61 @@ class LitModelVAE(pl.LightningModule):
         self.log_dir = log_dir
         self.latent_dim = latent_dim
         self.conditional = conditional
+        self.gravity_model = gravity_model
+        self.use_cond_loss = use_cond_loss
 
-        self.vae = ConvVAE(z_dim=latent_dim, conditional=conditional).cuda()
+        self.vae = ConvVAE(
+            z_dim=latent_dim, conditional=conditional, gravity_model=gravity_model
+        ).cuda()
+
+        self.gravity_matrix = torch.Tensor(generate_gravity_matrix()).to(self.device)
 
     def on_fit_start(self) -> None:
         super().on_fit_start()
+
+        # self.gravity_matrix = self.gravity_matrix.to(self.device)
+        self.train_test_batch = self.trainer.datamodule.val_dataset[:5]
+
+        # self.train_test_batch = [
+        #     self.trainer.datamodule.val_dataset.__getitem__(i) for i in range(5)
+        # ]
+        # train_test_batch = torch.cat(
+        #     [torch.Tensor(d).unsqueeze(0) for d, _ in self.train_test_batch]
+        # ), torch.cat([torch.Tensor(d).unsqueeze(0) for _, d in self.train_test_batch])
+        # self.train_test_batch = (
+        #     train_test_batch
+        #     if len(train_test_batch[0].shape) == 4
+        #     else (
+        #         train_test_batch[0].unsqueeze(1),
+        #         train_test_batch[1],
+        #     )
+        # )
+
         # self.gravity_matrix = self.gravity_matrix.to(self.device)
         # self.train_test_batch = self.trainer.datamodule.train_dataset[:5]
-        self.train_test_batch = [
-            self.trainer.datamodule.val_dataset.__getitem__(i) for i in range(5)
-        ]
-        train_test_batch = torch.cat(
-            [torch.Tensor(d).unsqueeze(0) for d, _ in self.train_test_batch]
-        ), torch.cat([torch.Tensor(d).unsqueeze(0) for _, d in self.train_test_batch])
-        self.train_test_batch = (
-            train_test_batch
-            if len(train_test_batch[0].shape) == 4
-            else (
-                train_test_batch[0].unsqueeze(1),
-                train_test_batch[1],
-            )
-        )
+
         # self.train_test_batch = torch.cat(
         #     [d for d, _ in self.train_test_batch], dim=0
         # ), torch.tensor([d for _, d in self.train_test_batch])
 
-    def forward(self, x):
-        return self.vae(x)
+    def forward(self, x, y):
+        return self.vae(x, y)
 
     def loss_function(self, recon_x, x, mu, log_var):
         # BCE = F.binary_cross_entropy(
         #     recon_x.view(-1, 784), x.view(-1, 784), reduction="sum"
         # )
-        BCE = F.mse_loss(recon_x.view(-1, 784), x.view(-1, 784), reduction="sum")
+        BCE = F.mse_loss(recon_x.view(-1, 1024), x.view(-1, 1024), reduction="sum")
         KLD = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
         return BCE + KLD
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+        x, y = x.float(), y.float()
         if len(x.shape) < 4:
             x = x.float().unsqueeze(1)
 
-        recon_batch, mu, log_var = self(x)
+        recon_batch, mu, log_var = self(x, y)
         loss = self.loss_function(recon_batch, x, mu, log_var) / x.shape[0]
 
         self.log(
@@ -137,14 +159,15 @@ class LitModelVAE(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
+        x, y = x.float(), y.float()
         if len(x.shape) < 4:
             x = x.float().unsqueeze(1)
 
-        recon_batch, mu, log_var = self(x)
+        recon_batch, mu, log_var = self(x, y)
         loss = self.loss_function(recon_batch, x, mu, log_var) / x.shape[0]
 
         self.log(
-            "train/loss",
+            "val/loss",
             loss,
             on_step=True,
             on_epoch=True,
@@ -161,24 +184,32 @@ class LitModelVAE(pl.LightningModule):
         x = x.float()
         y = y.float()
 
-        x_hat, mu, log_var = self(x)
+        if len(x.shape) < 4:
+            x = x.float().unsqueeze(1)
+        x_hat, mu, log_var = self(x, y)
+
+        pred_grav_data = compute_gravity_measure_batch(
+            x_hat.squeeze().detach().cpu().numpy(), self.gravity_matrix.cpu().numpy()
+        )
 
         plot_density_maps(
             x.squeeze().detach().cpu().numpy(),
-            l,
+            y.squeeze().detach().cpu().numpy(),
             32,
             log_dir=self.log_dir,
             curr_epoch=self.current_epoch,
             suffix="real",
+            pred_grav_data=pred_grav_data,
         )
 
         plot_density_maps(
             x_hat.squeeze().detach().cpu().numpy(),
-            l,
+            y.squeeze().detach().cpu().numpy(),
             32,
             log_dir=self.log_dir,
             curr_epoch=self.current_epoch,
             suffix="gen",
+            pred_grav_data=pred_grav_data,
         )
 
     def configure_optimizers(self):
@@ -233,9 +264,7 @@ class LitModelConvVAE(LitModelVAE):
         )
 
         self.hidden2mu = nn.Linear(256 * final_height**2, 256 * final_height**2)
-        self.hidden2log_var = nn.Linear(
-            256 * final_height**2, 256 * final_height**2
-        )
+        self.hidden2log_var = nn.Linear(256 * final_height**2, 256 * final_height**2)
 
         self.log_scale = nn.Parameter(torch.Tensor([0.0]))
 
@@ -262,7 +291,7 @@ class LitModelVAE(pl.LightningModule):
         self.encoder = encoder(**conf_encoder)
         self.decoder = decoder(**conf_decoder)
 
-        self.gravity_matrix = torch.Tensor(calculate_gravity_matrix()).to(self.device)
+        self.gravity_matrix = torch.Tensor(generate_gravity_matrix()).to(self.device)
 
         self.lr = lr
         self.b1 = b1
@@ -433,11 +462,13 @@ class LitDDPMGrav(pl.LightningModule):
         batch_size=512,
         n_sample_for_metric: int = 100,
         cfg_scale: int = 3,
+        use_cond_loss=False,
+        **kwargs,
     ):
         super().__init__()
         self.save_hyperparameters()
 
-        self.gravity_matrix = torch.Tensor(calculate_gravity_matrix()).to(self.device)
+        self.gravity_matrix = torch.Tensor(generate_gravity_matrix()).to(self.device)
 
         self.enc_layer = SimpleEncodingGrav()
         self.conf_ddpm = conf_ddpm
@@ -448,6 +479,7 @@ class LitDDPMGrav(pl.LightningModule):
         self.ema = ema(**self.conf_ema)
         self.ema_model = copy.deepcopy(self.model).eval().requires_grad_(False)
         self.cfg_scale = cfg_scale
+        self.use_cond_loss = use_cond_loss
 
         self.lr = lr
         self.b1 = b1
@@ -469,7 +501,7 @@ class LitDDPMGrav(pl.LightningModule):
     def on_fit_start(self) -> None:
         super().on_fit_start()
         self.gravity_matrix = self.gravity_matrix.to(self.device)
-        self.train_test_batch = self.trainer.datamodule.train_dataset[:5]
+        self.train_test_batch = self.trainer.datamodule.val_dataset[:5]
 
     def loss_fn(self, recon_x, x):
         return F.mse_loss(recon_x, x)
@@ -484,6 +516,8 @@ class LitDDPMGrav(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y = batch
+        if bool(torch.isnan(y.max())):
+            print("Problem in batch: ", batch_idx)
         x = x.unsqueeze(1)
         x = x.float()
         y = y.float()
@@ -538,20 +572,94 @@ class LitDDPMGrav(pl.LightningModule):
 
         x_hat = self.inference(y)
 
+        pred_grav_data = compute_gravity_measure_batch(
+            x_hat.squeeze().detach().cpu().numpy(), self.gravity_matrix.cpu().numpy()
+        )
+
         plot_density_maps(
             x.squeeze().detach().cpu().numpy(),
-            l,
+            y.squeeze().detach().cpu().numpy(),
             32,
             log_dir=self.log_dir,
             curr_epoch=self.current_epoch,
             suffix="real",
+            pred_grav_data=pred_grav_data,
         )
 
         plot_density_maps(
             x_hat.squeeze().detach().cpu().numpy(),
-            l,
+            y.squeeze().detach().cpu().numpy(),
             32,
             log_dir=self.log_dir,
             curr_epoch=self.current_epoch,
             suffix="gen",
+            pred_grav_data=pred_grav_data,
         )
+
+    def on_test_start(self):
+        self.dict_metrics_paths = defaultdict(dict)
+        self.metrics_measures = defaultdict(list)
+
+    def on_test_end(self) -> None:
+        img_dir = self.log_dir
+        new_dict_metrics = defaultdict(dict)
+        new_dict_metrics["paths"] = defaultdict(dict)
+        path_dict = os.path.join(img_dir, "metrics_img_path.json")
+        for k, v in self.metrics_measures.items():
+            fig_hist = plt.figure()
+            plt.hist(
+                v,
+                bins=100,
+                density=True,
+                histtype="step",
+                cumulative=True,
+                label=f"cum_distrib_{k}",
+            )
+            plt.savefig(os.path.join(img_dir, f"cum_distrib_{k}"))
+            fig_cum = plt.figure()
+            plt.hist(
+                v,
+                bins=250,
+                density=True,
+                histtype="step",
+                cumulative=False,
+                label=f"histogram_{k}",
+            )
+            plt.savefig(os.path.join(img_dir, f"histogram_{k}"))
+
+            new_dict_metrics[f"{k}_mean"] = float(np.mean(v))
+            new_dict_metrics[f"{k}_measures"] = list(map(lambda x: float(x), list(v)))
+            # new_dict_metrics["samples_per_sec"] = np.mean()
+            self.logger.experiment.add_figure(f"histogram_{k}", fig_hist)
+            self.logger.experiment.add_figure(f"cumulative_distribution_{k}", fig_cum)
+        with open(path_dict, "w") as f:
+            json.dump(new_dict_metrics, f)
+
+    def test_step(self, batch, batch_idx):
+        img_dir = os.path.join(self.log_dir, "images", f"test_step_{batch_idx}")
+        os.makedirs(img_dir, exist_ok=True)
+        x, y = batch
+        metrics_measures, metrics_samples = measure_metrics(
+            self.inference_model,
+            x,
+            y,
+            self.n_sample_for_metric,
+            self.metrics,
+            no_batch=False,
+        )
+        # figs, paths = create_figs_best_metrics_2D(
+        #     metrics_samples,
+        #     y_1_idxs,
+        #     x,
+        #     img_dir,
+        #     save=True,
+        #     sequential_cond=self.sequential_cond,
+        # )
+        for k, v in metrics_measures.items():
+            self.metrics_measures[k] += v
+        # for k, ps in paths.items():
+        #     if k not in ["ground_truth", "time_inference"]:
+        #         for i, p in enumerate(ps):
+        #             self.dict_metrics_paths[k + "_min"][p] = self.metrics_measures[
+        #                 k + "_min"
+        #             ][i]

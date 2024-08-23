@@ -1,4 +1,4 @@
-name_experiment: grav_ddpm_cond
+name_experiment: grav_ddpm_cond_large
 seed: 1234
 mode: fit
 
@@ -13,15 +13,15 @@ datamodule:
   pct_test: 0.02
   two_dimensional: True
   gravity_data:
-    train_path: data/gravity_data/training_data.hdf5
-    val_path: data/gravity_data/validation_data.hdf5
-    test_path: data/gravity_data/testing_data.hdf5      
+    train_path: data/gravity_data/train_data_new.hdf5
+    val_path: data/gravity_data/val_data_new.hdf5
+    test_path: data/gravity_data/test_data_new.hdf5     
 
 lit_model_type: LitDDPMGrav
 lit_model:
   diffusion: Diffusion2d
   conf_diffusion:                       
-    noise_steps: 500
+    noise_steps: 250
     beta_start: 0.0001
     beta_end: 0.02
     surf_size: 32
@@ -30,7 +30,6 @@ lit_model:
     c_in: 2
     c_out: 1
     time_dim: 256
-    small: True
   ema: EMA2d
   conf_ema:
     beta: 0.995

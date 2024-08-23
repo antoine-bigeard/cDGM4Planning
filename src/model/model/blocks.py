@@ -21,7 +21,7 @@ class SimpleEncodingGrav(nn.Module):
         super().__init__()
 
     def forward(self, y: torch.Tensor):
-        y = y.unsqueeze(1).unsqueeze(2).repeat(1, 1, 32, 1)
+        return y.unsqueeze(1).unsqueeze(2).repeat(1, 1, 32, 1)
 
 
 class View(nn.Module):

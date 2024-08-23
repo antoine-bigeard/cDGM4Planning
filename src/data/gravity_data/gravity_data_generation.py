@@ -80,7 +80,7 @@ def generate_models(
     """
 
     models, gravity_measures, faults = [], [], []
-    
+
     table_bounds = [(-1, -1), (140, 200), (40, 100), (180, 240), (280, 360)]
     densities = [2.3, 2.6, 2.4, 2.6, 2.8]
     ellipse_density = 2
@@ -91,7 +91,6 @@ def generate_models(
     grid_depth = grid_size[0]
 
     gravity_matrix = generate_gravity_matrix()
-
 
     for _ in tqdm(range(num_models)):
         model = np.zeros(grid_size)
@@ -115,8 +114,6 @@ def generate_models(
 
         if current_layer > 0:
             model[:current_layer, :] = densities[0]  # Layer 1 fills remaining space
-
-
 
         if np.random.rand() < 0.7:
             ellipse_center = (
@@ -142,15 +139,12 @@ def generate_models(
         else:
             fault_sum_up = [False, 0, 0, 0]
 
-    
+        model = (model - min(densities)) / (max(densities) - min(densities))
         gravity_measure = compute_gravity_measure(model, gravity_matrix)
 
-
-
         faults.append(fault_sum_up)
-        
+
         gravity_measures.append(gravity_measure)
-        
 
         models.append(model)
 
@@ -178,23 +172,38 @@ def compute_gravity_anomaly(gamma, Y1, Y2, Z1, Z2):
 
 def compute_gravity_measure(model, gravity_matrix):
     dense_model = np.repeat(model, 2, axis=1)
-    # multiply elementwise gravity_matrix with dense_model and sum on dimensions 1 and 2
-    gravity_data = []
-    for i in range(32):
-        gravity_data.append(np.sum(np.multiply(gravity_matrix[i], dense_model)))
 
-    gravity_data -= gravity_data[0]
+    dense_model = np.repeat(dense_model[None, :, :], 32, axis=0)
+    gravity_data = np.sum(np.multiply(gravity_matrix, dense_model), axis=(1, 2))
+
+    # gravity_data -= gravity_data[0]
 
     return gravity_data
 
 
+def compute_gravity_measure_batch(models, gravity_matrix):
+    dense_models = np.repeat(models, 2, axis=2)
 
-def generate_gravity_matrix( observer_height=50, cell_width=12.5, cell_height=25, grid_height=32, grid_width=64, n_measurement_points=32):
+    dense_models = np.repeat(dense_models[:, None, :, :], 32, axis=1)
+    gravity_matrix = np.repeat(gravity_matrix[None, ...], len(models), axis=0)
+    gravity_data = np.sum(np.multiply(gravity_matrix, dense_models), axis=(2, 3))
+    # gravity_data -= gravity_data[:, 0, np.newaxis]
 
+    return gravity_data
+
+
+def generate_gravity_matrix(
+    observer_height=50,
+    cell_width=12.5,
+    cell_height=25,
+    grid_height=32,
+    grid_width=64,
+    n_measurement_points=32,
+):
     measurement_points = np.linspace(212.5, 600, n_measurement_points)
     gravity_matrix = np.zeros((n_measurement_points, grid_height, grid_width))
 
-    gamma = 0.0000000000667
+    gamma = 0.000667
     for i, point_y in enumerate(measurement_points):
         for col in range(grid_width):
             for row in range(grid_height):
@@ -212,12 +221,12 @@ def generate_gravity_matrix( observer_height=50, cell_width=12.5, cell_height=25
                         gamma, Y1, Y2, Z1, Z2
                     )
 
-    return  gravity_matrix
-
-
+    return gravity_matrix
 
 
 """DRAFT - Visualization functions:"""
+
+
 def plot_models(models):
     num_models = len(models)
     cols = 4
@@ -258,34 +267,44 @@ def plot_models_and_gravity_data(models, gravity_data_list):
         cax, ax=axs[::2, :].ravel().tolist(), shrink=0.95
     )  # Add a single color bar for all model plots
     plt.tight_layout()  # Adjust layout to prevent overlap
-    
+
     # if the path exists:
     path_saving_antoine = "/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/models_and_gravity_data.png"
     if os.path.exists(path_saving_antoine):
         plt.savefig(path_saving_antoine)
-    
+
     plt.show()
 
 
 if __name__ == "__main__":
-    num_models = 100
+    np.random.seed(42)
+    num_models = 20000
     models, all_gravity_data, _ = generate_models(
         num_models,
-        path_save="C:\\Users\\sbarr\\Desktop\\cDGM4Planning\\src\\data\\gravity_data\\train_data.hdf5",
-    #     path_save="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/train_data.hdf5",
+        # path_save="C:\\Users\\sbarr\\Desktop\\cDGM4Planning\\src\\data\\gravity_data\\train_data.hdf5",
+        path_save="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/train_data_new.hdf5",
         save_model=True,
     )
 
-    # print("Train set generated successfully!")
+    print("Train set generated successfully!")
 
-    # num_models = 8
-    # models, all_gravity_data, _ = generate_models(
-    #     num_models,
-    #     path_save="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/val_data.hdf5",
-    #     save_model=True,
-    # )
+    num_models = 2000
+    models, all_gravity_data, _ = generate_models(
+        num_models,
+        path_save="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/val_data_new.hdf5",
+        save_model=True,
+    )
 
-    # print("Val set generated successfully!")
+    print("Val set generated successfully!")
+
+    num_models = 1000
+    models, all_gravity_data, _ = generate_models(
+        num_models,
+        path_save="/home/abigeard/RA_CCS/DeepGenerativeModelsCCS/data/gravity_data/test_data_new.hdf5",
+        save_model=True,
+    )
+
+    print("Test set generated successfully!")
 
     # open the saved models, gravity measures and faults and plot it
     # with h5py.File(
@@ -300,4 +319,4 @@ if __name__ == "__main__":
     # ]  # Compute gravity data for each model
 
     # Plot the models and their corresponding gravity data
-    plot_models_and_gravity_data(models, all_gravity_data)
+    # plot_models_and_gravity_data(models, all_gravity_data)

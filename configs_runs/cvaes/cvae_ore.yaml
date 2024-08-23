@@ -13,12 +13,14 @@ datamodule:
   pct_test: 0.02                             
   two_dimensional: True             
 
-lit_model_type: LitModelVAE                 
+lit_model_type: LitModelVAEOre
 lit_model:
-  latent_dim: 1024
+  latent_dim: 256
   lr: 0.0001             
   batch_size: 100                            
-  n_sample_for_metric: 100                   
+  n_sample_for_metric: 100
+  conditional: True
+  validation_x_shape: [10, 1, 32, 32]            
 
 trainer:
   auto_lr_find: False                        

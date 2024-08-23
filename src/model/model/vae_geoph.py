@@ -39,26 +39,31 @@ class VAE(nn.Module):
 
 
 class ConvVAE(nn.Module):
-    def __init__(self, z_dim, conditional=False):
+    def __init__(self, z_dim=256, conditional=True, gravity_model=True):
         super(ConvVAE, self).__init__()
 
         self.conditional = conditional
+        self.gravity_model = gravity_model
 
         # Encoder
         self.enc_conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1)
         self.enc_conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
         self.enc_conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
         # self.enc_fc = nn.Linear(4 * 4 * 128, 4 * 4 * 64)
-        self.enc_fc1 = nn.Linear(4 * 4 * 128, z_dim)
-        self.enc_fc2 = nn.Linear(4 * 4 * 128, z_dim)
+        self.enc_fc1 = nn.Linear(4 * 4 * 128, 256)
+        self.enc_fc2 = nn.Linear(4 * 4 * 128, 256)
 
         # Decoder
         if conditional:
-            self.enc_layer = nn.Linear(2 * 28 * 28, 512)
+            self.enc_layer = (
+                nn.Linear(2 * 32 * 32, 256)
+                if not self.gravity_model
+                else nn.Linear(32, 256)
+            )
         self.dec_fc1 = (
             nn.Linear(z_dim, 4 * 4 * 128)
             if not conditional
-            else nn.Linear(z_dim + 512, 4 * 4 * 128)
+            else nn.Linear(z_dim * 2, 4 * 4 * 128)
         )
         # self.dec_fc2 = nn.Linear(4 * 4 * 64, 4 * 4 * 128)
         self.dec_conv1 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2)
@@ -80,7 +85,7 @@ class ConvVAE(nn.Module):
 
     def decoder(self, z, c=None):
         if self.conditional:
-            c = self.enc_layer(c.view(-1, 28 * 28))
+            c = self.enc_layer(c.view(-1, 2 * 32 * 32) if not self.gravity_model else c)
             z = torch.cat((z, c), dim=1)
         h = F.relu(self.dec_fc1(z))
         # h = F.relu(self.dec_fc2(h))
@@ -89,9 +94,11 @@ class ConvVAE(nn.Module):
         h = F.relu(self.dec_conv2(h))
         return torch.sigmoid(self.dec_conv3(h))
 
-    def forward(self, x):
+    def forward(self, x, c=None):
         mu, log_var = self.encoder(x)
         z = self.sampling(mu, log_var)
+        if self.conditional:
+            return self.decoder(z, c), mu, log_var
         return self.decoder(z), mu, log_var
 
 
